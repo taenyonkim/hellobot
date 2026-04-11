@@ -60,25 +60,48 @@ HelloBot은 AI 챗봇 기반 운세/점술 서비스로, 사용자에게 사주,
 - **외부 연동**: AWS S3/SES
 - **배포**: ArgoCD/Kubernetes
 
-### 프론트엔드
+### 프론트엔드 (웹)
 
-#### hellobot-web (메인 웹)
-- **스택**: Next.js 14 / React 18 / Tailwind / Redux Toolkit / SWR
-- **주요 기능**: 스킬스토어, 운세, 쿠폰, 결제(TossPayments)
-- **신규 기능 개발 대상** (hellobot-webview에서 이관 중)
+헬로우봇 웹 프론트엔드는 3개 프로젝트가 하나의 도메인(`hellobot.co`)을 나눠 서빙합니다.
+Nginx 프록시가 URL 경로에 따라 각 프로젝트로 라우팅합니다.
 
-#### hellobot-webview (레거시 웹뷰)
+> 상세 페이지 매핑: [web-page-map.md](./web-page-map.md)
+
+```
+hellobot.co (Nginx)
+  ├── /features, /skills-new, /daily-fortune, /saju,
+  │   /chatrooms-new, /payment, /coupon
+  │   → hellobot-web (Next.js, :4500)
+  │
+  ├── 그 외 대부분의 경로
+  │   → hellobot-webview (Angular SSR, :4000)
+  │
+  └── (별도 도메인) report.hellobot.co
+      → hellobot-report-webview (Next.js, :4400)
+```
+
+#### hellobot-webview (베이스 — Angular SSR)
 - **스택**: Angular 13 / Angular Universal (SSR)
+- **역할**: 웹 프론트엔드의 기본 베이스. 대부분의 페이지를 서빙
 - **모바일 앱에 WebView로 임베딩**
 - **점진적으로 hellobot-web(Next.js)으로 이관 중**
+- **담당 영역**: 로그인/회원, 스토어(레거시), 설정, 이벤트, 공지/FAQ 등 80+개 라우트
 
-#### hellobot-report-webview (리포트)
+#### hellobot-web (마이그레이션 대상 — Next.js)
+- **스택**: Next.js 14 / React 18 / Tailwind / Redux Toolkit / SWR
+- **역할**: hellobot-webview에서 이관된 신규 페이지 담당
+- **담당 영역**: 스킬 탐색(/features), 스킬 목록(/skills-new), 일일운세(/daily-fortune), 사주(/saju), 채팅(/chatrooms-new), 결제/쿠폰
+- **신규 웹 기능은 이 프로젝트에서 개발**
+
+#### hellobot-report-webview (리포트 전용 — Next.js)
 - **스택**: Next.js 14 / React 18 / Tailwind / Reactflow / Recharts
-- **주요 기능**: 사용자 리포트, 궁합 분석, 인터랙티브 차트
+- **역할**: 리포트/분석 페이지 전용. 별도 도메인(`report.hellobot.co`)에서 서빙
+- **담당 영역**: 구매 리포트(/report), 궁합 분석(/relationreport), 요약 리포트(/summary-reports), 전시(/exhibition)
 
 #### hellobot-studio-web (스튜디오 프론트)
 - **스택**: Angular 13 / Angular Material / ng-bootstrap
 - **주요 기능**: 챗봇 빌더 UI, PWA 지원
+- **별도 도메인**: hellobotstudio.com
 
 ### 모바일
 

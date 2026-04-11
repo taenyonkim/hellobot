@@ -9,7 +9,7 @@
 | 서버 | hellobot-server | feat/coupnc-integration | worktrees/hellobot-server/ | - |
 | iOS | hellobot_iOS | - | - | - |
 | Android | hellobot_android | - | - | - |
-| 웹 | hellobot-web | - | - | - |
+| 웹 | hellobot-web | feat/coop-integration | worktrees/hellobot-web/ | - |
 
 ## 파트별 진행 상태
 
@@ -18,7 +18,7 @@
 | 서버 | 개발중 | /dev-server | Entity, Service, Controller, Admin 구현 완료. 정산 통계 미완. |
 | iOS | 대기 | /dev-ios | 서버 API 완료 및 api-spec.md 작성 후 착수 |
 | Android | 대기 | /dev-android | 서버 API 완료 및 api-spec.md 작성 후 착수 |
-| 웹 | 대기 | /dev-web | 서버 API 완료 후 착수 |
+| 웹 | 개발중 | /dev-web | 쿠폰 등록 페이지 구현 |
 | 스튜디오 | 해당없음 | - | |
 | 데이터 | 해당없음 | - | |
 
