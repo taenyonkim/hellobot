@@ -1,0 +1,16 @@
+# 개별 리포지토리 (각자 독립 Git으로 관리)
+hellobot-server/
+hellobot-studio-server/
+hellobot-studio-web/
+hellobot-web/
+hellobot-webview/
+hellobot-report-webview/
+hellobot_android/
+hellobot_iOS/
+common-data-airflow/
+
+# 워크트리 (원본 리포에서 관리)
+projects/*/worktrees/
+
+# OS
+.DS_Store
