@@ -3,7 +3,7 @@
 프로젝트별 문서와 개발 환경(워크트리)을 관리합니다.
 
 > **프로젝트 vs 리포 레벨 문서**
-> - **프로젝트** (`projects/`): 요구사항, 전체 설계, 파트별 과업, API 계약 + 워크트리
+> - **프로젝트** (`projects/`): 기획 문서, 전체 설계, 파트별 과업, API 계약 + 워크트리
 > - **리포 레벨** (예: `hellobot-server/docs/features/`): 해당 파트의 구현 상세
 
 ---
@@ -14,11 +14,26 @@
 projects/
 ├── readme.md                              # 이 문서
 └── YYYYMMDD-feature-name/                 # 프로젝트별 디렉토리
-    ├── readme.md                          # 요구사항, 배경, 목표, 범위
+    │
+    │  ── 입력 문서 (사용자 제공) ──
+    ├── 1pager.md                          # 프로젝트 1-pager
+    ├── designs/                           # 외부 디자인 파일 (이미지, Figma, 와이어프레임)
+    │
+    │  ── 기획 문서 (모든 파트 공통 참조) ──
+    ├── requirements.md                    # 요구사항 정의서
+    ├── user-stories.md                    # 사용자 스토리
+    ├── screen-plan.md                     # 화면 기획서
+    ├── references/                        # 외부 참조 자료 (API 문서, 제안서, 프로세스 등)
+    ├── review/                            # 검토/분석 문서 (방식 비교, 기존 시스템 분석 등)
+    │
+    │  ── 에이전트 생성 문서 ──
+    ├── readme.md                          # 프로젝트 개요 (/analyze 작성)
     ├── status.md                          # 진행 상태, 워크트리/브랜치 현황
     ├── tasks.md                           # 파트별 과업 목록
-    ├── design.md                          # 기술 설계 (API 계약, 데이터 흐름)
-    ├── api-spec.md                        # 파트 간 API 명세 (필요시)
+    ├── design.md                          # 기술 설계 (/design 작성)
+    ├── api-spec.md                        # 파트 간 API 명세
+    │
+    │  ── 개발 환경 ──
     └── worktrees/                         # 개발용 워크트리 (필요시 생성)
         ├── hellobot-server/               # git worktree (feat/feature-name)
         └── hellobot_iOS/                  # git worktree (feat/feature-name)
@@ -33,8 +48,15 @@ projects/
 ## 워크플로우
 
 ```
+프로젝트 생성
+  │  프로젝트 디렉토리 생성, designs/ 디렉토리 생성
+  │  사용자에게 1pager.md 작성 요청
+  ▼
+1pager.md 작성 (사용자)
+  │  Problem, Customer Job, Solution, Success Metric 등
+  ▼
 /analyze 실행
-  │  readme.md 작성 (요구사항, 배경, 목표, 범위)
+  │  1pager.md를 기반으로 readme.md 작성
   │  tasks.md 작성 (파트별 과업 분류)
   │  status.md 생성 (초기 상태)
   ▼
@@ -52,6 +74,88 @@ projects/
   │  변경사항 검토
   │  status.md 최종 업데이트
 ```
+
+---
+
+## 문서 분류 규칙
+
+프로젝트 문서는 **모든 파트가 공통으로 참조하는 문서**입니다. 특정 파트의 구현 상세는 해당 리포에 둡니다.
+
+### 프로젝트 레벨 (projects/해당프로젝트/)
+
+| 문서 | 작성자 | 설명 |
+|------|--------|------|
+| `1pager.md` | 사용자 | 프로젝트 목표, 솔루션, 지표 |
+| `designs/` | 사용자 | 디자인 파일, 와이어프레임 |
+| `requirements.md` | /analyze 또는 사용자 | 요구사항 정의서 — 전체 기능 요구사항 |
+| `user-stories.md` | /analyze 또는 사용자 | 사용자 스토리 — UX 흐름, 예외 시나리오 |
+| `screen-plan.md` | /analyze 또는 사용자 | 화면 기획서 — 화면 구성, 분기 조건 |
+| `references/` | 사용자 또는 에이전트 | 외부 참조 (API 문서, 제안서, 연동 가이드) |
+| `review/` | 에이전트 | 검토 분석 (방식 비교, 기존 시스템 분석, 프라이싱) |
+| `readme.md` | /analyze | 프로젝트 개요, 영향 범위 |
+| `status.md` | 모든 에이전트 | 진행 상태, 브랜치/워크트리 현황 |
+| `tasks.md` | /analyze | 파트별 과업 목록 |
+| `design.md` | /design | 기술 설계 (데이터 모델, 처리 로직) |
+| `api-spec.md` | /design | 서버↔클라이언트 API 계약 |
+
+### 리포 레벨 (예: hellobot-server/docs/features/해당피쳐/)
+
+| 문서 | 작성자 | 설명 |
+|------|--------|------|
+| `backend-design.md` | /dev-server | Entity, Service, 테이블 설계 상세 |
+| `backend-guide.md` | /dev-server | 구현 순서, 코드 골격 |
+| `testing/` | /dev-server | 테스트 플랜, 테스트 결과 |
+| `deployment/` | /dev-server | 배포 가이드 |
+
+> **원칙**: "iOS 개발자가 이 문서를 참고해야 하는가?" → Yes면 프로젝트 레벨, No면 리포 레벨.
+
+---
+
+## 입력 문서
+
+### 1pager.md (프로젝트 1-pager)
+
+프로젝트 시작 시 사용자가 작성하는 문서입니다. 에이전트가 작성하지 않습니다.
+`/analyze`는 이 문서를 기반으로 요구사항을 구체화합니다.
+
+```markdown
+## **Problem**
+{해결하려는 문제와 root cause}
+
+## **Customer Job**
+{고객/회사가 달성하고 싶은 것}
+
+## **Solution / Feature**
+{제안된 솔루션과 주요 기능}
+
+## **Success Metric**
+input metric
+{투입 지표}
+
+output metric
+{성과 지표}
+
+## **Benchmark**
+{참고 사례, 시장 상황}
+
+## **Trade off**
+{필요한 리소스, 트레이드오프}
+
+## **Unhappy Path**
+{실패 시나리오, 리스크}
+
+## **Feedback loop**
+{성과 측정 및 피드백 방법}
+```
+
+### designs/ (디자인 파일)
+
+기획 완료 후 외부에서 작성된 디자인 파일을 넣는 디렉토리입니다.
+- Figma 링크를 담은 markdown 파일
+- 스크린샷, 목업 이미지
+- 디자인 스펙 문서
+
+`/design` 에이전트가 기술 설계 시 이 디렉토리의 파일을 참고합니다.
 
 ---
 
@@ -240,3 +344,4 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 | 날짜 | 프로젝트명 | 상태 | 설명 |
 |------|-----------|------|------|
 | 2026-04-11 | [workspace-setup](./20260411-workspace-setup/) | 개발중 | 통합 개발 환경 구축 (에이전트 워크플로우, 프로젝트 구조) |
+| 2026-03-24 | [coop-integration](./20260324-coop-integration/) | 개발중 | 쿠프마케팅 카카오 선물하기 상품권 연동 (서버 개발중, 클라이언트 대기) |

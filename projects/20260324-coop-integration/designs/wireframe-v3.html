@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>카카오 선물하기 상품권 — 와이어프레임 v3</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: #f0f0f0; color: #222; min-height: 100vh;
+  }
+
+  /* — Top Nav — */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #fff; border-bottom: 1px solid #ddd; padding: 12px 20px;
+  }
+  .topbar-title { font-size: 14px; font-weight: 700; text-align: center; margin-bottom: 10px; color: #222; }
+  .topbar-tabs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .topbar-tabs button {
+    padding: 6px 13px; border: 1px solid #bbb; border-radius: 20px;
+    background: #fff; cursor: pointer; font-size: 12px; color: #555; transition: all .15s;
+  }
+  .topbar-tabs button:hover { background: #f5f5f5; }
+  .topbar-tabs button.active { background: #222; color: #fff; border-color: #222; }
+
+  /* — Layout — */
+  .main {
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: 96px 20px 40px; gap: 28px; flex-wrap: wrap;
+  }
+
+  /* — Phone — */
+  .phone {
+    width: 375px; min-height: 750px; background: #fff; border-radius: 40px;
+    border: 3px solid #222; overflow: hidden; position: relative; flex-shrink: 0;
+    box-shadow: 0 8px 40px rgba(0,0,0,.12);
+  }
+  .notch { width: 150px; height: 28px; background: #222; border-radius: 0 0 20px 20px; margin: 0 auto; }
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 24px 0; font-size: 12px; font-weight: 600; color: #222;
+  }
+
+  /* — App Header — */
+  .app-header {
+    display: flex; align-items: center; padding: 12px 16px 10px; border-bottom: 1px solid #f0f0f0;
+  }
+  .back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #222; }
+  .app-header-title { flex: 1; text-align: center; font-size: 17px; font-weight: 700; color: #222; margin-right: 32px; }
+
+  /* — Coupon Input — */
+  .coupon-input-area { display: flex; align-items: center; gap: 8px; padding: 14px 16px 12px; }
+  .coupon-input {
+    flex: 1; height: 42px; padding: 0 14px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+    font-size: 14px; color: #222; background: #fafafa; outline: none; transition: border-color .15s;
+  }
+  .coupon-input::placeholder { color: #bbb; }
+  .coupon-input:focus { border-color: #222; background: #fff; }
+  .register-btn {
+    height: 42px; padding: 0 18px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer; transition: all .15s;
+  }
+  .register-btn.disabled { background: #f0f0f0; color: #ccc; }
+  .register-btn.enabled { background: #FF4D6A; color: #fff; }
+  .register-btn.enabled:hover { background: #e8405a; }
+
+  /* — Input Hint — */
+  .input-hint {
+    padding: 0 16px 12px; font-size: 12px; color: #bbb; line-height: 1.4;
+  }
+
+  /* — Coupon List — */
+  .coupon-list { padding: 4px 16px; }
+  .coupon-card {
+    background: #fafafa; border-radius: 12px; padding: 16px; margin-bottom: 10px; border: 1px solid #f0f0f0;
+  }
+  .coupon-card-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 700; margin-bottom: 6px;
+  }
+  .badge-discount { background: #FFE8EC; color: #FF4D6A; }
+  .badge-skill { background: #E8EAFF; color: #6366F1; }
+  .coupon-card-name { font-size: 15px; font-weight: 600; color: #222; margin-bottom: 4px; }
+  .coupon-card-desc { font-size: 12px; color: #999; margin-bottom: 2px; }
+  .coupon-card-expiry { font-size: 12px; color: #bbb; }
+
+  /* — Bottom Bar — */
+  .bottom-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; border-top: 1px solid #eee; background: #fff; padding: 8px 0 20px;
+  }
+  .bottom-bar-item { flex: 1; text-align: center; font-size: 10px; color: #bbb; padding-top: 4px; }
+  .bottom-bar-item .icon { font-size: 18px; margin-bottom: 2px; }
+  .bottom-bar-item.active { color: #222; font-weight: 600; }
+
+  /* — Overlay — */
+  .overlay {
+    display: none; position: absolute; inset: 0; background: rgba(0,0,0,.45);
+    z-index: 10; justify-content: center; align-items: center; padding: 20px;
+  }
+  .overlay.visible { display: flex; }
+  .popup {
+    background: #fff; border-radius: 16px; width: 100%; max-width: 310px;
+    padding: 28px 22px 22px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.15);
+  }
+
+  /* — Popup Shared — */
+  .popup-name { font-size: 17px; font-weight: 700; color: #222; margin-bottom: 6px; }
+  .popup-desc { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 20px; }
+  .popup-btns { display: flex; gap: 10px; }
+  .popup-btns button {
+    flex: 1; padding: 13px 0; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .btn-cancel { background: #f0f0f0; color: #666; }
+  .btn-cancel:hover { background: #e5e5e5; }
+  .btn-use { background: #222; color: #fff; }
+  .btn-use:hover { background: #444; }
+  .btn-single {
+    width: 100%; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .btn-confirm { background: #222; color: #fff; }
+  .btn-confirm:hover { background: #444; }
+  .btn-skill-go { background: #6366f1; color: #fff; }
+  .btn-skill-go:hover { background: #4f46e5; }
+
+  /* Heart popup */
+  .heart-img {
+    width: 72px; height: 72px; background: #FFF0F5; border: 2px dashed #F9A; border-radius: 16px;
+    margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 32px;
+  }
+  .heart-amount {
+    font-size: 22px; font-weight: 800; color: #E44B8A; margin-bottom: 8px;
+  }
+
+  /* Skill popup */
+  .skill-banner {
+    width: 100%; height: 110px;
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    border-radius: 12px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #6366f1; font-weight: 600; border: 2px dashed #a5b4fc;
+  }
+  .skill-chatbot { font-size: 13px; color: #888; margin-bottom: 4px; }
+
+  /* Complete */
+  .complete-icon {
+    width: 56px; height: 56px; background: #E8F9EE; border-radius: 50%;
+    margin: 0 auto 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px; color: #34C759;
+  }
+  .complete-msg { font-size: 16px; font-weight: 600; color: #222; margin-bottom: 18px; line-height: 1.5; }
+
+  /* Error */
+  .error-icon {
+    width: 56px; height: 56px; background: #FFF0F0; border-radius: 50%;
+    margin: 0 auto 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px; color: #E44;
+  }
+  .error-msg { font-size: 14px; color: #444; line-height: 1.6; margin-bottom: 18px; }
+
+  /* Spinner */
+  .spinner-overlay {
+    display: none; position: absolute; inset: 0; background: rgba(255,255,255,.6);
+    z-index: 20; justify-content: center; align-items: center;
+  }
+  .spinner-overlay.visible { display: flex; }
+  .spinner {
+    width: 32px; height: 32px; border: 3px solid #eee; border-top-color: #222;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes toastIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+  /* — Annotations — */
+  .annotations {
+    width: 340px; flex-shrink: 0; background: #fff; border-radius: 16px;
+    padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  }
+  .ann-group { margin-bottom: 20px; }
+  .ann-group:last-child { margin-bottom: 0; }
+  .ann-group h3 {
+    font-size: 14px; font-weight: 700; margin-bottom: 10px;
+    padding-bottom: 8px; border-bottom: 1px solid #eee; color: #222;
+  }
+  .ann-item {
+    font-size: 13px; color: #555; line-height: 1.7; margin-bottom: 8px;
+    padding-left: 14px; position: relative;
+  }
+  .ann-item::before {
+    content: ''; position: absolute; left: 0; top: 8px;
+    width: 6px; height: 6px; border-radius: 50%; background: #ccc;
+  }
+  .ann-item strong { color: #222; }
+  .ann-item code { background: #f5f5f5; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  @media (max-width: 780px) {
+    .main { flex-direction: column; align-items: center; }
+    .annotations { width: 100%; max-width: 375px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-title">카카오 선물하기 상품권 — 와이어프레임 v3</div>
+  <div class="topbar-tabs">
+    <button class="active" onclick="showTab('default')">쿠폰 화면</button>
+    <button onclick="showTab('s2a')">하트 충전권 확인</button>
+    <button onclick="showTab('s2b')">스킬 교환권 확인</button>
+    <button onclick="showTab('s3')">하트 충전 완료</button>
+    <button onclick="showTab('heart')">하트 페이지</button>
+    <button onclick="showTab('s4')">스킬 이용권 등록</button>
+    <button onclick="showTab('skill-detail')">스킬 상세</button>
+    <button onclick="showTab('chatroom')">챗봇 채팅방</button>
+    <button onclick="showTab('s5')">에러</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status-bar"><span>11:12</span><span>📶 🔋</span></div>
+
+    <!-- App Header -->
+    <div class="app-header">
+      <div class="back-btn">‹</div>
+      <div class="app-header-title">쿠폰 2</div>
+    </div>
+
+    <!-- Coupon Input -->
+    <div class="coupon-input-area">
+      <input class="coupon-input" id="input" placeholder="쿠폰 코드를 입력해주세요" oninput="toggleBtn()">
+      <button class="register-btn disabled" id="regBtn" onclick="handleRegister()">등록</button>
+    </div>
+    <div class="input-hint">헬로우봇 쿠폰, 카카오 상품권 등 쿠폰 번호를 입력해보세요.</div>
+
+    <!-- Coupon List -->
+    <div class="coupon-list" id="couponList">
+      <!-- Skill coupon card (hidden, shown after skill exchange) -->
+      <div class="coupon-card skill-coupon-card" id="skillCouponCard" onclick="showSkillDetail()" style="display:none; border:1.5px solid #c7d2fe; background:#f8f7ff; cursor:pointer;">
+        <div class="coupon-card-badge badge-skill">스킬 이용권</div>
+        <div class="coupon-card-name">(스킬명) 이용권</div>
+        <div class="coupon-card-desc">챗봇: (챗봇명)</div>
+        <div class="coupon-card-expiry">2026.05.06 23:59 까지</div>
+      </div>
+      <div class="coupon-card">
+        <div class="coupon-card-badge badge-discount">100% &nbsp; 특별 혜택</div>
+        <div class="coupon-card-name">박항욱 26 신년 리터치 쿠폰 2</div>
+        <div class="coupon-card-desc">1하트 이상 결제 시</div>
+        <div class="coupon-card-expiry">2026.12.31 23:59 까지</div>
+      </div>
+      <div class="coupon-card">
+        <div class="coupon-card-badge badge-discount">100% &nbsp; 특별 혜택</div>
+        <div class="coupon-card-name">박항욱 26 신년 리터치 쿠폰</div>
+        <div class="coupon-card-desc">1하트 이상 결제 시</div>
+        <div class="coupon-card-expiry">2026.12.31 23:59 까지</div>
+      </div>
+    </div>
+
+    <!-- ========== OVERLAYS ========== -->
+
+    <!-- S2-A: 하트 충전권 확인 -->
+    <div class="overlay" id="ov-s2a">
+      <div class="popup">
+        <div class="heart-img">♥</div>
+        <div class="popup-name">하트 충전권 5천원권</div>
+        <div class="heart-amount">♥ 500개</div>
+        <div class="popup-desc">이 쿠폰을 사용하면<br>하트 500개가 충전됩니다.<br>사용하시겠습니까?</div>
+        <div class="popup-btns">
+          <button class="btn-cancel" onclick="closeOv()">취소</button>
+          <button class="btn-use" onclick="showOv('s3')">사용하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- S2-B: 스킬 교환권 확인 -->
+    <div class="overlay" id="ov-s2b">
+      <div class="popup">
+        <div class="skill-banner">스킬 배너 이미지</div>
+        <div class="popup-name">(스킬명) 교환권</div>
+        <div class="skill-chatbot">챗봇: (챗봇명)</div>
+        <div class="popup-desc">이 쿠폰을 스킬 이용권으로 교환합니다.<br>사용하시겠습니까?</div>
+        <div class="popup-btns">
+          <button class="btn-cancel" onclick="closeOv()">취소</button>
+          <button class="btn-use" onclick="registerSkillCoupon()">사용하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- S3: 하트 충전 완료 -->
+    <div class="overlay" id="ov-s3">
+      <div class="popup">
+        <div class="complete-icon">✓</div>
+        <div class="complete-msg">하트 500개가<br>충전되었어요</div>
+        <button class="btn-single btn-confirm" onclick="goToHeartPage()">충전 확인하기</button>
+      </div>
+    </div>
+
+    <!-- S4: 스킬 이용권 등록 완료 토스트 -->
+    <div id="skill-toast" style="display:none; position:absolute; top:100px; left:20px; right:20px; z-index:15;
+      background:#222; color:#fff; border-radius:10px; padding:14px 18px;
+      font-size:14px; font-weight:600; text-align:center;
+      box-shadow:0 4px 16px rgba(0,0,0,.2); animation: toastIn .3s ease;">
+      스킬 이용권이 등록되었어요
+    </div>
+
+    <!-- S5: 에러 -->
+    <div class="overlay" id="ov-s5">
+      <div class="popup">
+        <div class="error-icon">!</div>
+        <div class="error-msg">유효하지 않은 쿠폰번호예요.<br>쿠폰번호를 다시 확인해주세요.</div>
+        <button class="btn-single btn-confirm" onclick="closeOv()">확인</button>
+      </div>
+    </div>
+
+    <!-- Skill Detail Page (full screen, replaces popup) -->
+    <div id="skill-detail-page" style="display:none; position:absolute; inset:0; background:#fff; z-index:5;">
+      <div style="height:28px; background:#222; width:150px; border-radius:0 0 20px 20px; margin:0 auto;"></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 24px 0; font-size:12px; font-weight:600; color:#222;"><span>12:27</span><span>📶 🔋</span></div>
+      <!-- Top bar with back/close -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px;">
+        <div class="back-btn" onclick="hideSkillDetail()">‹</div>
+        <div style="font-size:18px; color:#999; cursor:pointer;" onclick="hideSkillDetail()">✕</div>
+      </div>
+      <!-- Chatbot icon + info -->
+      <div style="text-align:center; padding:0 20px;">
+        <div style="width:56px; height:56px; border-radius:50%; background:#f0f0f0; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; font-size:28px;">☯</div>
+        <div style="font-size:12px; color:#888; margin-bottom:2px;">천호 연우 사주</div>
+        <div style="font-size:20px; font-weight:800; color:#222; margin-bottom:8px;">내 운명 지도: 전국편</div>
+        <!-- Price -->
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
+          <span style="font-size:14px; color:#bbb; text-decoration:line-through;">♥ 430</span>
+          <span style="font-size:18px; font-weight:800; color:#FF4D6A;">♥ 0</span>
+          <span style="display:inline-block; background:#FFE8EC; color:#FF4D6A; font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px;">쿠폰 적용</span>
+        </div>
+      </div>
+      <!-- Stats -->
+      <div style="display:flex; text-align:center; padding:12px 20px; border-top:1px solid #f0f0f0; border-bottom:1px solid #f0f0f0; margin:0 0 16px;">
+        <div style="flex:1;">
+          <div style="font-size:15px; font-weight:700; color:#222;">★ 4.8</div>
+          <div style="font-size:11px; color:#999;">별점</div>
+        </div>
+        <div style="flex:1; border-left:1px solid #f0f0f0; border-right:1px solid #f0f0f0;">
+          <div style="font-size:15px; font-weight:700; color:#222;">1만+</div>
+          <div style="font-size:11px; color:#999;">이용자 수</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:15px; font-weight:700; color:#222;">-</div>
+          <div style="font-size:11px; color:#999;">글자 수</div>
+        </div>
+      </div>
+      <!-- Banner image placeholder -->
+      <div style="margin:0 16px; border-radius:12px; overflow:hidden; height:200px; background:linear-gradient(135deg,#FFD6E8 0%,#FFC2D4 50%,#E8EAFF 100%); display:flex; align-items:center; justify-content:center;">
+        <div style="text-align:center;">
+          <div style="font-size:16px; font-weight:800; color:#C2185B; margin-bottom:4px;">내 운명 지도: 전국편</div>
+          <div style="font-size:12px; color:#C2185B99;">스킬 배너 이미지 영역</div>
+        </div>
+      </div>
+      <!-- Bottom CTA -->
+      <div style="position:absolute; bottom:0; left:0; right:0; padding:12px 16px 28px; background:#fff; border-top:1px solid #eee; display:flex; align-items:center; gap:10px;">
+        <div style="width:40px; height:40px; border:1px solid #eee; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#bbb;">☆</div>
+        <div style="width:40px; height:40px; border:1px solid #eee; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#bbb;">🎁</div>
+        <button onclick="goToChatroom()" style="flex:1; height:44px; background:#FFE066; border:none; border-radius:22px; font-size:16px; font-weight:700; color:#333; cursor:pointer; transition:background .15s;">지금 보러가기</button>
+      </div>
+    </div>
+
+    <!-- Chatroom Page -->
+    <div id="chatroom-page" style="display:none; position:absolute; inset:0; background:#fff; z-index:5;">
+      <div style="height:28px; background:#222; width:150px; border-radius:0 0 20px 20px; margin:0 auto;"></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 24px 0; font-size:12px; font-weight:600; color:#222;"><span>12:12</span><span>📶 🔋</span></div>
+      <div class="app-header">
+        <div class="back-btn" onclick="hideChatroom()">‹</div>
+        <div class="app-header-title">천호 연우 사주</div>
+      </div>
+      <div style="padding:16px; overflow-y:auto;">
+        <!-- Bot greeting -->
+        <div style="display:flex; gap:10px; margin-bottom:16px; align-items:flex-start;">
+          <div style="width:40px; height:40px; border-radius:50%; background:#f0f0f0; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">☯</div>
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#222; margin-bottom:4px;">천호 연우</div>
+            <div style="background:#f5f5f5; border-radius:0 12px 12px 12px; padding:12px 14px; font-size:14px; color:#333; line-height:1.6; max-width:240px;">
+              내 운명 지도: 전국편을 시작합니다.
+            </div>
+            <div style="background:#f5f5f5; border-radius:0 12px 12px 12px; padding:12px 14px; font-size:14px; color:#333; line-height:1.6; max-width:240px; margin-top:6px;">
+              그대의 사주를 바탕으로 전국 팔도의 운명 지도를 펼쳐보겠소.
+            </div>
+            <div style="background:#f5f5f5; border-radius:0 12px 12px 12px; padding:12px 14px; font-size:14px; color:#333; line-height:1.6; max-width:240px; margin-top:6px;">
+              먼저 그대의 생년월일을 알려주시겠소?
+            </div>
+          </div>
+        </div>
+        <!-- Coupon auto-applied indicator -->
+        <div style="text-align:center; margin:20px 0 10px;">
+          <div style="display:inline-block; background:#E8EAFF; color:#6366f1; font-size:12px; font-weight:600; padding:6px 14px; border-radius:20px;">
+            쿠폰 적용 · 무료로 이용 중
+          </div>
+        </div>
+      </div>
+      <!-- Chat input -->
+      <div style="position:absolute; bottom:0; left:0; right:0; padding:10px 16px 24px; border-top:1px solid #eee; background:#fff; display:flex; align-items:center; gap:8px;">
+        <div style="width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:16px; color:#bbb;">+</div>
+        <div style="flex:1; background:#f5f5f5; border-radius:20px; padding:10px 14px; font-size:14px; color:#bbb;">메시지를 입력하세요</div>
+      </div>
+    </div>
+
+    <!-- Heart Page (shown after 충전 확인하기) -->
+    <div id="heart-page" style="display:none; position:absolute; inset:0; background:#fff; z-index:5;">
+      <div style="height:28px; background:#222; width:150px; border-radius:0 0 20px 20px; margin:0 auto;"></div>
+      <div style="display:flex; justify-content:space-between; padding:6px 24px 0; font-size:12px; font-weight:600; color:#222;"><span>11:12</span><span>📶 🔋</span></div>
+      <div class="app-header">
+        <div class="back-btn" onclick="hideHeartPage()">‹</div>
+        <div class="app-header-title">내 하트</div>
+      </div>
+      <div style="padding:16px 20px 0;">
+        <div style="font-size:13px; color:#999; margin-bottom:4px;">현재 보유 중인 하트</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="font-size:28px; font-weight:800; color:#222;">
+            <span style="color:#FF4D6A;">♥</span> 5,036
+          </div>
+          <div style="padding:8px 16px; background:#FF4D6A; color:#fff; border-radius:8px; font-size:14px; font-weight:700;">하트 충전</div>
+        </div>
+        <div style="font-size:12px; color:#999; margin-bottom:16px;">ⓘ 하트 <strong style="color:#222;">5036</strong>개 · 보너스 하트 <strong style="color:#222;">0</strong>개</div>
+      </div>
+      <div style="padding:0 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-size:16px; font-weight:700; color:#222;">충전 내역</div>
+          <div style="font-size:13px; color:#999;">모두 보기</div>
+        </div>
+        <!-- New entry highlighted -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0; background:#FFFBF0; margin:-4px -8px; padding:12px 8px; border-radius:8px;">
+          <div>
+            <div style="font-size:12px; color:#999;">2026.04.06</div>
+            <div style="font-size:14px; font-weight:600; color:#222;">카카오 상품권 하트 충전</div>
+          </div>
+          <div style="font-size:14px; font-weight:700; color:#FF4D6A;">하트 500개</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+          <div>
+            <div style="font-size:12px; color:#999;">2026.04.01</div>
+            <div style="font-size:14px; font-weight:600; color:#222;">[하트] 하트 25</div>
+          </div>
+          <div style="font-size:14px; font-weight:700; color:#222;">하트 25개</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+          <div>
+            <div style="font-size:12px; color:#999;">2025.12.19</div>
+            <div style="font-size:14px; font-weight:600; color:#222;">테스트 하트 충전</div>
+          </div>
+          <div style="font-size:14px; font-weight:700; color:#222;">하트 5000개</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+          <div>
+            <div style="font-size:12px; color:#999;">2024.07.19</div>
+            <div style="font-size:14px; font-weight:600; color:#222;">2024년 하반기 운세 보고서 선물 결제 취소</div>
+          </div>
+          <div style="font-size:14px; font-weight:700; color:#222;">하트 180개</div>
+        </div>
+      </div>
+      <!-- Bottom gauge -->
+      <div style="position:absolute; bottom:60px; left:16px; right:16px; background:linear-gradient(135deg,#E8F9EE,#D4F0E0); border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:10px;">
+        <div style="font-size:14px; font-weight:700; color:#34C759;">하트 게이지 충전소</div>
+        <div style="font-size:12px; color:#666;">하트 게이지 최대 8,401개</div>
+      </div>
+      <div class="bottom-bar">
+        <div class="bottom-bar-item"><div class="icon">☰</div>홈</div>
+        <div class="bottom-bar-item"><div class="icon">👥</div>친구들</div>
+        <div class="bottom-bar-item"><div class="icon">💬</div>채팅</div>
+        <div class="bottom-bar-item active"><div class="icon">♥</div>하트</div>
+        <div class="bottom-bar-item"><div class="icon">👤</div>프로필</div>
+      </div>
+    </div>
+
+    <!-- Spinner -->
+    <div class="spinner-overlay" id="spinner"><div class="spinner"></div></div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="bottom-bar-item"><div class="icon">☰</div>홈</div>
+      <div class="bottom-bar-item"><div class="icon">👥</div>친구들</div>
+      <div class="bottom-bar-item"><div class="icon">💬</div>채팅</div>
+      <div class="bottom-bar-item"><div class="icon">♥</div>하트</div>
+      <div class="bottom-bar-item active"><div class="icon">👤</div>프로필</div>
+    </div>
+  </div>
+
+  <!-- Annotations -->
+  <div class="annotations">
+
+    <div class="ann-group" id="ann-default">
+      <h3>쿠폰 화면</h3>
+      <div class="ann-item"><strong>진입</strong>: 프로필 → 쿠폰 탭, 또는 카카오 선물하기 딥링크로 직접 랜딩</div>
+      <div class="ann-item">기존 쿠폰 입력란을 그대로 사용. 쿠폰 코드 입력 → 등록</div>
+      <div class="ann-item">서버가 코드 형식을 판별하여 <strong>기존 쿠폰</strong>이면 기존 처리, <strong>카카오 상품권</strong>이면 조회 API → 상품유형별 확인 팝업</div>
+      <div class="ann-item"><strong>화면 유형</strong>: 네이티브 (iOS / Android / Web)</div>
+      <div class="ann-item">입력란 하단 힌트: "헬로우봇 쿠폰, 카카오 상품권 등 쿠폰 번호를 입력해보세요."</div>
+      <div class="ann-item">입력 필드 비어있으면 등록 버튼 비활성화</div>
+    </div>
+
+    <div class="ann-group" id="ann-s2a" style="display:none">
+      <h3>하트 충전권 확인 팝업</h3>
+      <div class="ann-item">조회 성공 + productType = <code>heart</code></div>
+      <div class="ann-item">상품 이미지 + 상품명 + 충전 수량 표시</div>
+      <div class="ann-item">"이 쿠폰을 사용하면 하트 N개가 충전됩니다. 사용하시겠습니까?"</div>
+      <div class="ann-item">사용하기 → L1 사용 API → 성공 시 충전 완료 팝업</div>
+      <div class="ann-item"><strong>중복 탭 방지</strong>: 사용하기 버튼 로딩 + 비활성화</div>
+      <div class="ann-item">취소 → 팝업 닫기, 쿠폰 미사용</div>
+    </div>
+
+    <div class="ann-group" id="ann-s2b" style="display:none">
+      <h3>스킬 교환권 확인 팝업</h3>
+      <div class="ann-item">조회 성공 + productType = <code>skill</code></div>
+      <div class="ann-item">스킬 배너 이미지 + 스킬명 + 챗봇명 표시</div>
+      <div class="ann-item">"이 쿠폰을 스킬 이용권으로 교환합니다. 사용하시겠습니까?"</div>
+      <div class="ann-item">사용하기 → L1 사용 API → <strong>쿠폰 리스트에 스킬 이용권 등록</strong></div>
+      <div class="ann-item"><strong>중복 탭 방지</strong>: 사용하기 버튼 로딩 + 비활성화</div>
+    </div>
+
+    <div class="ann-group" id="ann-s3" style="display:none">
+      <h3>하트 충전 완료</h3>
+      <div class="ann-item">"하트 {N}개가 충전되었어요"</div>
+      <div class="ann-item">충전 확인하기 → <strong>내 하트 페이지로 이동</strong>하여 충전 결과 확인</div>
+    </div>
+
+    <div class="ann-group" id="ann-heart" style="display:none">
+      <h3>내 하트 페이지</h3>
+      <div class="ann-item">하트 충전 완료 후 <strong>충전 확인하기</strong> 탭 시 이동하는 화면</div>
+      <div class="ann-item">보유 하트 수량이 충전분 반영되어 표시 (4,536 → 5,036)</div>
+      <div class="ann-item">충전 내역 최상단에 "카카오 상품권 하트 충전" 항목 노출</div>
+      <div class="ann-item">기존 하트 페이지 화면 그대로 활용</div>
+    </div>
+
+    <div class="ann-group" id="ann-s4" style="display:none">
+      <h3>스킬 이용권 등록 완료</h3>
+      <div class="ann-item">사용하기 → 팝업 닫힘 → 쿠폰 리스트 최상단에 <strong>스킬 이용권 카드</strong> 추가</div>
+      <div class="ann-item">상단 토스트: "스킬 이용권이 등록되었어요"</div>
+      <div class="ann-item">이용권 카드에 스킬명, 챗봇명, 유효기간 표시</div>
+      <div class="ann-item">이용권 카드 탭 → <strong>스킬 상세 페이지</strong>로 이동 (쿠폰 적용, 가격 0원)</div>
+    </div>
+
+    <div class="ann-group" id="ann-skill-detail" style="display:none">
+      <h3>스킬 상세 페이지</h3>
+      <div class="ann-item">쿠폰 리스트에서 <strong>스킬 이용권 카드 탭</strong> 시 해당 스킬 상세 페이지로 이동</div>
+      <div class="ann-item">기존 스킬 상세 페이지와 동일한 UI</div>
+      <div class="ann-item">쿠폰 적용으로 가격이 <strong>♥ 0</strong>으로 표시 (원래 가격 취소선)</div>
+      <div class="ann-item"><strong>지금 보러가기</strong> → 챗봇 채팅방으로 이동, 쿠폰 자동 적용되어 무료 이용</div>
+    </div>
+
+    <div class="ann-group" id="ann-chatroom" style="display:none">
+      <h3>챗봇 채팅방</h3>
+      <div class="ann-item">스킬 이용권의 <strong>지금 보러가기</strong> 탭 시 이동하는 화면</div>
+      <div class="ann-item">해당 챗봇의 채팅방에서 스킬이 <strong>자동 시작</strong>됨</div>
+      <div class="ann-item">스킬 이용권이 적용되어 별도 하트 차감 없이 진행</div>
+      <div class="ann-item">기존 채팅방 UI 그대로 활용</div>
+    </div>
+
+    <div class="ann-group" id="ann-s5" style="display:none">
+      <h3>에러 팝업</h3>
+      <div class="ann-item"><strong>8001/8002</strong> — 유효하지 않은 쿠폰번호예요.</div>
+      <div class="ann-item"><strong>8003</strong> — 기간이 만료된 쿠폰이에요.</div>
+      <div class="ann-item"><strong>8005</strong> — 이미 사용된 쿠폰이에요.</div>
+      <div class="ann-item"><strong>8099</strong> — 결제가 취소된 쿠폰이에요.</div>
+      <div class="ann-item"><strong>9981~9999</strong> — 일시적인 오류가 발생했어요.</div>
+      <div class="ann-item">확인 → 팝업 닫기 (입력 필드 유지)</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const ovIds = ['s2a','s2b','s3','s5'];
+  const annIds = ['default','s2a','s2b','s3','s4','s5','heart','skill-detail','chatroom'];
+
+  function hideAll() {
+    ovIds.forEach(o => document.getElementById('ov-' + o).classList.remove('visible'));
+    document.getElementById('heart-page').style.display = 'none';
+    document.getElementById('chatroom-page').style.display = 'none';
+    document.getElementById('skill-detail-page').style.display = 'none';
+    document.getElementById('skill-toast').style.display = 'none';
+  }
+
+  function showAnn(id) {
+    annIds.forEach(a => {
+      const el = document.getElementById('ann-' + a);
+      if (el) el.style.display = a === id ? 'block' : 'none';
+    });
+  }
+
+  function showTab(id) {
+    document.querySelectorAll('.topbar-tabs button').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    hideAll();
+    showAnn(id === 'default' ? 'default' : id);
+    if (ovIds.includes(id)) document.getElementById('ov-' + id).classList.add('visible');
+    if (id === 'heart') document.getElementById('heart-page').style.display = 'block';
+    if (id === 'chatroom') document.getElementById('chatroom-page').style.display = 'block';
+    if (id === 's4') {
+      document.getElementById('skillCouponCard').style.display = 'block';
+      showSkillToast();
+    }
+    if (id === 'skill-detail') {
+      document.getElementById('skillCouponCard').style.display = 'block';
+      document.getElementById('skill-detail-page').style.display = 'block';
+    }
+  }
+
+  function showOv(id) {
+    hideAll();
+    document.getElementById('ov-' + id).classList.add('visible');
+    showAnn(id);
+  }
+
+  function goToHeartPage() {
+    hideAll();
+    document.getElementById('heart-page').style.display = 'block';
+    document.getElementById('input').value = '';
+    toggleBtn();
+    showAnn('heart');
+  }
+
+  function hideHeartPage() {
+    document.getElementById('heart-page').style.display = 'none';
+    showAnn('default');
+  }
+
+  function closeOv() {
+    hideAll();
+    showAnn('default');
+  }
+
+  function resetAll() {
+    hideAll();
+    document.getElementById('input').value = '';
+    toggleBtn();
+    showAnn('default');
+  }
+
+  function registerSkillCoupon() {
+    hideAll();
+    document.getElementById('input').value = '';
+    toggleBtn();
+    document.getElementById('skillCouponCard').style.display = 'block';
+    showSkillToast();
+    showAnn('s4');
+    // Update header count
+    document.querySelector('.app-header-title').textContent = '쿠폰 3';
+  }
+
+  function showSkillToast() {
+    const toast = document.getElementById('skill-toast');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2500);
+  }
+
+  function showSkillDetail() {
+    document.getElementById('skill-detail-page').style.display = 'block';
+    showAnn('skill-detail');
+  }
+
+  function hideSkillDetail() {
+    document.getElementById('skill-detail-page').style.display = 'none';
+    showAnn('default');
+  }
+
+  function goToChatroom() {
+    hideAll();
+    document.getElementById('chatroom-page').style.display = 'block';
+    showAnn('chatroom');
+  }
+
+  function hideChatroom() {
+    document.getElementById('chatroom-page').style.display = 'none';
+    showAnn('default');
+  }
+
+  function toggleBtn() {
+    const v = document.getElementById('input').value.trim();
+    document.getElementById('regBtn').className = 'register-btn ' + (v ? 'enabled' : 'disabled');
+  }
+
+  function handleRegister() {
+    const v = document.getElementById('input').value.trim();
+    if (!v) return;
+    const sp = document.getElementById('spinner');
+    sp.classList.add('visible');
+    setTimeout(() => {
+      sp.classList.remove('visible');
+      if (v.includes('에러') || v.includes('error')) showOv('s5');
+      else if (v.includes('스킬') || v.includes('skill')) showOv('s2b');
+      else showOv('s2a');
+    }, 700);
+  }
+</script>
+
+</body>
+</html>
