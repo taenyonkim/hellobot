@@ -47,7 +47,7 @@
 | [screen-plan.md](./screen-plan.md) | 화면 기획서 |
 | [designs/wireframe-v3.html](./designs/wireframe-v3.html) | 와이어프레임 확정본 |
 | [references/](./references/) | 쿠프마케팅 API 레퍼런스, 연동 가이드 PDF |
-| [review/](./review/) | 기존 시스템 검토, 교환 방식 비교, 프라이싱 전략 |
+| [planning/](./planning/) | 기획 과업 산출물 (기존 시스템 검토, 교환 방식 비교, 프라이싱 전략) |
 | [status.md](./status.md) | 전체 진행 상태 및 워크트리/브랜치 현황 |
 | [tasks.md](./tasks.md) | 파트별 과업 목록 |
 | [api-spec.md](./api-spec.md) | 클라이언트용 API 명세 |
