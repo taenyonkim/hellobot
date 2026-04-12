@@ -128,6 +128,50 @@ hellobot.co (Nginx)
 - **대상 서비스**: HelloBot, StoryPlay, Between, ThingsFlow
 - **알림**: Slack API, Notion API
 
+## 배포
+
+### 배포 브랜치 및 파이프라인
+
+| 리포 | 개발 배포 브랜치 | 운영 배포 브랜치 | 파이프라인 | 배포 대상 |
+|------|-----------------|-----------------|-----------|----------|
+| hellobot-server | `deploy-dev` | `master` | GitHub Actions → Docker(ECR) → ArgoCD | Kubernetes |
+| hellobot-studio-server | `deploy-dev` | `master` | GitHub Actions → Docker(ECR) → ArgoCD | Kubernetes |
+| hellobot-studio-web | `deploy-dev` | `deploy` | GitHub Actions → S3 + CloudFront | CDN |
+| hellobot-web | `deploy-dev` | `deploy-prod` | GitHub Actions → Docker(ECR) → ArgoCD | Kubernetes |
+| hellobot-webview | `deploy-dev` | `main` | ArgoCD | Kubernetes |
+| hellobot-report-webview | `dev-report-web-deploy` | `prod-report-web-deploy` | GitHub Actions → Docker | Kubernetes |
+| hellobot_android | `develop` | `master` → `release/*` | GitHub Actions → Firebase App Distribution / Google Play | Firebase / Play Store |
+| hellobot_iOS | `develop` | `main` | Fastlane → TestFlight | TestFlight / App Store |
+| common-data-airflow | `develop` | — | 수동 (`git pull`) | Kubernetes (Airflow) |
+
+### 일본어 배포 (별도 브랜치)
+
+| 리포 | JP 개발 | JP 운영 |
+|------|--------|--------|
+| hellobot-studio-web | `ja-deploy-dev` | `ja-deploy` |
+| hellobot-webview | `ja-deploy-dev` | `ja-deploy` |
+
+### 배포 절차 요약
+
+**서버/웹 (ArgoCD 계열)**:
+1. 피쳐 브랜치에서 개발
+2. 배포 브랜치에 머지 → GitHub Actions가 Docker 이미지 빌드 + ECR 푸시
+3. ArgoCD가 감지하여 Kubernetes에 배포 (또는 수동 Sync)
+4. ArgoCD 대시보드: `https://argocd.thingsflow.com/applications/{앱명}`
+
+**모바일 (Android)**:
+1. `develop` 머지 → GitHub Actions가 Firebase App Distribution에 배포
+2. `release/*` 브랜치 생성 → Firebase 배포 + 버전 자동 증가
+3. Play Store 업로드는 별도 워크플로우 수동 트리거
+
+**모바일 (iOS)**:
+1. Fastlane `testflight_beta_upload` → 개발 빌드 TestFlight 배포
+2. Fastlane `testflight_upload` → 운영 빌드 TestFlight 배포
+3. Fastlane `submit` → App Store 심사 제출
+
+**스튜디오 웹 (S3)**:
+1. 배포 브랜치 머지 → GitHub Actions가 `yarn build` → S3 업로드 → CloudFront 무효화
+
 ## 환경
 
 | 환경 | 용도 |

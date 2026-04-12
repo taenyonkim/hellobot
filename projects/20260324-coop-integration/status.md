@@ -18,7 +18,7 @@
 | 서버 | 개발중 | /dev-server | [worktrees/hellobot-server/docs/features/.../status.md](./worktrees/hellobot-server/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | iOS | 대기 | /dev-ios | - |
 | Android | 대기 | /dev-android | - |
-| 웹 | 착수전 | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
+| 웹 | 개발중 | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | 스튜디오 | 해당없음 | - | - |
 | 데이터 | 해당없음 | - | - |
 
@@ -30,7 +30,7 @@
 | 파트 | 진행 요약 |
 |------|----------|
 | 서버 | Entity/Service/Controller/Admin 구현 완료. 잔여: 정산 통계. api-spec.md, client-guide.md 작성 완료. |
-| 웹 | 워크트리 세팅 완료. 구현 착수 전. |
+| 웹 | 1차 구현 + 코드 리뷰 완료. 잔여: 웹뷰 환경 검증, 일본어 번역 검수. |
 
 ## 확정 사항
 
@@ -44,6 +44,12 @@
 현재 없음.
 
 ## 작업 로그
+
+### 2026-04-13 — 웹 파트 1차 구현 + 리뷰
+
+- 웹 파트 구현: 타입, API 훅, 팝업 4종, 이용권 카드, CouponCodeRegister 통합, 번역 키
+- 코드 리뷰 5건 수정: use API 에러 처리, 등록 버튼 중복 방지, S2 취소 비활성화, 이용권 카드 스타일, 타입 통합
+- 잔여: 웹뷰 환경 검증, 일본어 번역 검수
 
 ### 2026-04-12 — 프로젝트 구조 정비
 
