@@ -21,7 +21,30 @@
   projects/readme.md           ← 프로젝트 목록 테이블이 최신인지
   projects/*/status.md         ← 각 프로젝트의 상태가 실제와 일치하는지
   projects/*/tasks.md          ← 과업 체크리스트가 최신인지
+
+리포 레벨 (점검 시 참조):
+  projects/*/worktrees/{리포}/docs/features/*/status.md  ← 파트별 상세 진행
 ```
+
+## 2레벨 문서 추적
+
+프로젝트 진행 상태는 2레벨로 관리됩니다:
+
+```
+프로젝트 레벨 (projects/.../status.md)        ← /workspace가 관리
+  → 파트별 상태 요약 (한 줄), 블로커, 마일스톤
+  → 각 파트의 리포 레벨 status.md로 링크
+
+리포 레벨 ({리포}/docs/features/.../status.md)  ← /dev-* 가 관리
+  → 해당 파트 구현 상세, 과업 체크리스트, 작업 로그
+```
+
+### /workspace의 동기화 역할
+
+- 각 리포의 `docs/features/.../status.md`를 읽어서 현재 상태 파악
+- 프로젝트 `status.md`의 파트별 요약을 최신화
+- 리포 레벨과 프로젝트 레벨 간 상태 불일치 발견 시 수정
+- 프로젝트 `tasks.md`의 체크리스트와 리포 status의 과업 진행이 일치하는지 확인
 
 ## 컨텍스트 로딩 규칙
 
@@ -69,10 +92,10 @@
 ### 특정 피쳐 점검 (`/workspace 20260412-share-result`)
 
 1. 해당 프로젝트의 모든 문서(readme, status, tasks, design, api-spec) 읽기
-2. status.md의 파트별 상태가 실제 진행과 일치하는지 확인
-3. tasks.md의 체크리스트가 최신인지 확인
-4. 리포 레벨에 관련 프로젝트 문서가 있으면 상태 대조
-5. 불일치 발견 시 수정
+2. **리포 레벨 status.md 수집**: 워크트리 내 `docs/features/.../status.md` 확인
+3. 리포 레벨 상태와 프로젝트 레벨 status.md의 파트별 요약이 일치하는지 대조
+4. tasks.md의 체크리스트와 리포 레벨 과업 진행이 일치하는지 확인
+5. 불일치 발견 시 프로젝트 레벨 status.md를 최신화 (리포 레벨이 source of truth)
 
 ## 출력 형식
 

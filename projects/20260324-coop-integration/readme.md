@@ -50,6 +50,8 @@
 | [review/](./review/) | 기존 시스템 검토, 교환 방식 비교, 프라이싱 전략 |
 | [status.md](./status.md) | 전체 진행 상태 및 워크트리/브랜치 현황 |
 | [tasks.md](./tasks.md) | 파트별 과업 목록 |
+| [api-spec.md](./api-spec.md) | 클라이언트용 API 명세 |
+| [client-guide.md](./client-guide.md) | 클라이언트 개발 가이드 |
 
 ### 리포 레벨 상세 문서 (hellobot-server)
 

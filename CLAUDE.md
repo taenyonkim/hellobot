@@ -56,7 +56,8 @@ hellobot/                              ← 워크스페이스 루트
 ├── CLAUDE.md                          ← 이 파일 (전체 규칙)
 ├── docs/                              ← 프로젝트와 무관한 상시 문서
 │   ├── architecture.md
-│   └── how-to-work.md
+│   ├── how-to-work.md
+│   └── web-page-map.md
 ├── projects/                          ← 프로젝트별 디렉토리
 │   ├── readme.md                      ← 프로젝트 문서 가이드 및 템플릿
 │   └── YYYYMMDD-feature-name/         ← 프로젝트

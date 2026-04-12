@@ -98,14 +98,37 @@ projects/
 | `design.md` | /design | 기술 설계 (데이터 모델, 처리 로직) |
 | `api-spec.md` | /design | 서버↔클라이언트 API 계약 |
 
-### 리포 레벨 (예: hellobot-server/docs/features/해당피쳐/)
+### 리포 레벨 ({리포}/docs/features/해당피쳐/)
 
-| 문서 | 작성자 | 설명 |
-|------|--------|------|
-| `backend-design.md` | /dev-server | Entity, Service, 테이블 설계 상세 |
-| `backend-guide.md` | /dev-server | 구현 순서, 코드 골격 |
-| `testing/` | /dev-server | 테스트 플랜, 테스트 결과 |
-| `deployment/` | /dev-server | 배포 가이드 |
+각 `/dev-*` 에이전트는 자기 리포에 피쳐 문서를 생성하여 구현 상세와 작업 로그를 기록합니다.
+
+| 리포 | 문서 예시 | 작성자 |
+|------|----------|--------|
+| hellobot-server | `backend-design.md`, `backend-guide.md`, `testing/`, `deployment/`, `status.md` | /dev-server |
+| hellobot-web | `web-guide.md`, `status.md` | /dev-web |
+| hellobot_iOS | `ios-guide.md`, `status.md` | /dev-ios |
+| hellobot_android | `android-guide.md`, `status.md` | /dev-android |
+| hellobot-studio-* | `studio-guide.md`, `status.md` | /dev-studio |
+| common-data-airflow | `data-guide.md`, `status.md` | /dev-data |
+
+**필수 파일**: `status.md` — 해당 파트의 과업 체크리스트와 작업 로그
+**선택 파일**: `{파트}-guide.md` — 구현 가이드 (수정 대상 파일, 컴포넌트 구조 등)
+
+#### 2레벨 추적 원칙
+
+```
+프로젝트 레벨 (projects/.../status.md)
+  → 파트별 상태 요약, 블로커, 마일스톤
+  → /workspace가 관리
+
+리포 레벨 ({리포}/docs/features/.../status.md)
+  → 해당 파트 구현 상세, 과업 체크리스트, 작업 로그
+  → /dev-* 가 관리
+```
+
+- `/dev-*` 에이전트는 자기 리포의 status.md를 업데이트
+- `/workspace`는 각 리포 status를 모아서 프로젝트 status.md에 요약 반영
+- 프로젝트 status.md에서 리포 status.md로 링크
 
 > **원칙**: "iOS 개발자가 이 문서를 참고해야 하는가?" → Yes면 프로젝트 레벨, No면 리포 레벨.
 
