@@ -66,6 +66,7 @@ hellobot/                              ← 워크스페이스 루트
 │       ├── tasks.md                   ← 파트별 과업
 │       ├── design.md                  ← 기술 설계
 │       ├── api-spec.md                ← API 명세
+│       ├── planning/                  ← 기획 과업 산출물 (필요시 생성)
 │       └── worktrees/                 ← 개발용 워크트리 (필요시 생성)
 │           ├── hellobot-server/       ← git worktree (feat/feature-name)
 │           └── hellobot_iOS/          ← git worktree (feat/feature-name)
@@ -209,6 +210,7 @@ hellobot/                              ← 워크스페이스 루트
 - **담당 외 리포의 소스코드 탐색 금지** — 필요한 정보는 프로젝트 문서나 API 스펙으로 전달
 - **리포 전체를 훑는 광범위 탐색 금지** — 항상 파일명/키워드로 타겟팅 검색
 - **불필요한 파일 읽기 금지** — 구현에 직접 관련된 파일만 읽기
+- **`/dev-*` 에이전트는 `planning/` 디렉토리 탐색 금지** — 개발에 필요한 사항은 프로젝트 문서(readme, design, tasks 등)로 승격되어 있음
 - **원본 리포에서 코드 수정 금지** — 반드시 프로젝트 워크트리에서 작업
 
 ### 탐색 전략
