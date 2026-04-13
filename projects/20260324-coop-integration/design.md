@@ -390,3 +390,12 @@ use API → skill 성공 시:
 | [designs/design-review.md](./designs/design-review.md) | 디자인 리뷰 체크리스트 (웹 반영 완료) |
 | [user-stories.md](./user-stories.md) | 사용자 스토리 (US-1~US-6) |
 | [requirements.md](./requirements.md) | 요구사항 정의서 |
+| [issues.md](./issues.md) | 이슈 목록 |
+
+---
+
+## Changelog
+
+| 날짜 | 이슈 | 변경 내용 |
+|------|------|----------|
+| | | (ISS-001 해결 시 §5-2, §5-3, §5-4 변경 예정) |

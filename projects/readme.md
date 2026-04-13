@@ -30,6 +30,7 @@ projects/
     ├── readme.md                          # 프로젝트 개요 (/analyze 작성)
     ├── status.md                          # 진행 상태, 워크트리/브랜치 현황
     ├── tasks.md                           # 파트별 과업 목록
+    ├── issues.md                          # 이슈 추적 (QA/리뷰/개발 중 발견, 모든 에이전트 작성)
     ├── design.md                          # 기술 설계 (/design 작성)
     ├── api-spec.md                        # 파트 간 API 명세
     ├── qa-test-cases.md                   # QA 테스트 케이스 (/qa 작성)
@@ -79,7 +80,18 @@ projects/
   │  qa-test-cases.md 작성 (요구사항/설계 기반)
   │  테스트 수행 결과 기록
   │  status.md 최종 업데이트
+  │
+  ▼
+이슈 발견 시 (어떤 단계에서든)
+  │  issues.md에 기록
+  │  설계 변경 필요 → design.md/api-spec.md 수정 + Changelog 기록
+  │  tasks.md에 과업 추가 (ISS-NNN 참조)
+  │  /dev-* 수정 → qa-test-cases.md 보강 → issues.md 상태 업데이트
 ```
+
+> **피드백 루프**: 위 워크플로우는 순방향이지만, 개발·리뷰·QA 중 이슈가 발견되면
+> 설계 문서를 수정하고 과업을 추가하는 역방향 흐름이 발생합니다.
+> 이슈 관리 절차는 CLAUDE.md의 "이슈 관리" 섹션을 참조하세요.
 
 ---
 
@@ -101,6 +113,7 @@ projects/
 | `readme.md` | /analyze | 프로젝트 개요, 영향 범위 |
 | `status.md` | 모든 에이전트 | 진행 상태, 브랜치/워크트리 현황 |
 | `tasks.md` | /analyze | 파트별 과업 목록 |
+| `issues.md` | 모든 에이전트 | 이슈 추적 (QA/리뷰/개발 중 발견된 버그, 예외, 개선사항) |
 | `design.md` | /design | 기술 설계 (데이터 모델, 처리 로직) |
 | `api-spec.md` | /design | 서버↔클라이언트 API 계약 |
 | `qa-test-cases.md` | /qa | QA 테스트 케이스 및 검수 결과 |
@@ -270,6 +283,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 |------|------|
 | [status.md](./status.md) | 전체 진행 상태 |
 | [tasks.md](./tasks.md) | 파트별 과업 목록 |
+| [issues.md](./issues.md) | 이슈 추적 |
 | [design.md](./design.md) | 기술 설계 |
 | [api-spec.md](./api-spec.md) | API 명세 |
 | [qa-test-cases.md](./qa-test-cases.md) | QA 테스트 케이스 |
@@ -367,6 +381,72 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 ---
 
+### issues.md (이슈 추적)
+
+QA, 리뷰, 개발 등 어떤 단계에서든 발견된 이슈를 추적합니다.
+프로젝트 시작 시 생성하지 않으며, 첫 이슈 발생 시 생성합니다.
+
+```markdown
+# 이슈 목록
+
+## 이슈 분류
+- **bug**: 구현이 설계와 다름
+- **edge-case**: 설계에서 고려하지 못한 예외 상황
+- **enhancement**: 기존 요구사항 범위 밖의 개선
+
+---
+
+## 미해결 이슈
+
+### ISS-001: {이슈 제목}
+
+| 항목 | 내용 |
+|------|------|
+| 분류 | {bug / edge-case / enhancement} |
+| 발견일 | YYYY-MM-DD |
+| 발견 단계 | {QA / 리뷰 / 개발 / 운영} |
+| 심각도 | {P1 / P2 / P3} |
+| 영향 파트 | {서버, 웹, iOS 등} |
+| 상태 | {등록 / 분석중 / 설계수정 / 구현중 / 검증} |
+
+**현상**: {무엇이 발생하는지}
+
+**원인**: {왜 발생하는지 (분석 후 기재)}
+
+---
+
+## 해결된 이슈
+
+{해결 완료된 이슈를 이동. 해결 방안, 관련 문서 변경 내역을 포함.}
+
+### ISS-NNN: {이슈 제목}
+
+...기존 필드...
+
+**해결 방안**: {어떻게 수정했는지}
+
+**관련 문서 변경**:
+- design.md §{섹션} — {변경 내용}
+- tasks.md — {추가된 과업}
+- qa-test-cases.md — {추가/수정된 테스트 케이스}
+```
+
+**심각도 정의**:
+| 심각도 | 설명 | 대응 |
+|--------|------|------|
+| P1 | 데이터 무결성/보안, 핵심 기능 장애 | 즉시 대응 |
+| P2 | 주요 기능 오류 | 릴리스 전 수정 |
+| P3 | 사소한 이슈 | 후속 수정 가능 |
+
+**상태 흐름**:
+```
+등록 → 분석중 → 설계수정 → 구현중 → 검증 → 완료
+                    │                       ↑
+                    └── (단순 버그) ─────────┘
+```
+
+---
+
 ### design.md (기술 설계)
 
 ```markdown
@@ -397,7 +477,17 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 ### Android
 {Android에서 구현할 핵심 사항}
+
+---
+
+## Changelog
+
+| 날짜 | 이슈 | 변경 내용 |
+|------|------|----------|
 ```
+
+> **Changelog 규칙**: 이슈로 인한 설계 변경 시 반드시 기록합니다.
+> api-spec.md에도 동일한 Changelog 섹션을 둡니다.
 
 ---
 
