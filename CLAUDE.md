@@ -68,6 +68,7 @@ hellobot/                              ← 워크스페이스 루트
 │       ├── tasks.md                   ← 파트별 과업
 │       ├── design.md                  ← 기술 설계
 │       ├── api-spec.md                ← API 명세
+│       ├── qa-test-cases.md           ← QA 테스트 케이스
 │       ├── planning/                  ← 기획 과업 산출물 (필요시 생성)
 │       └── worktrees/                 ← 개발용 워크트리 (필요시 생성)
 │           ├── hellobot-server/       ← git worktree (feat/feature-name)
@@ -157,6 +158,9 @@ hellobot/                              ← 워크스페이스 루트
 /review (검토)             → 크로스 리포 정합성 검증
     │
     ▼
+/qa (QA)                   → 테스트 케이스 작성, 검수 결과 관리
+    │
+    ▼
 /workspace (관리)          → 문서 정합성 점검, 상태 최신화 (수시)
 ```
 
@@ -173,6 +177,7 @@ hellobot/                              ← 워크스페이스 루트
 | `/dev-studio` | 스튜디오 개발자 | hellobot-studio-server, hellobot-studio-web |
 | `/dev-data` | 데이터 엔지니어 | common-data-airflow |
 | `/review` | 코드 리뷰어 | 변경된 리포 전체 |
+| `/qa` | QA 담당자 — 테스트 케이스 작성, 검수 결과 관리 | 프로젝트 문서 (읽기) + qa-test-cases.md (작성) |
 | `/workspace` | 워크스페이스 관리자 — 문서 정합성, 상태 최신화 | 워크스페이스 문서 전체 |
 
 ### 에이전트 간 커뮤니케이션
@@ -183,7 +188,8 @@ hellobot/                              ← 워크스페이스 루트
 2. `/design` → `design.md`, `api-spec.md` 작성
 3. `/dev-*` → 워크트리에서 구현 후 `status.md` 업데이트
 4. `/review` → 변경사항 + 프로젝트 문서 대조 검증
-5. `/workspace` → 문서 정합성 점검, 오래된 문서 최신화
+5. `/qa` → `qa-test-cases.md` 작성, 검수 결과 관리
+6. `/workspace` → 문서 정합성 점검, 오래된 문서 최신화
 
 ### 프로젝트 문서 구조
 

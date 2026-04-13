@@ -15,12 +15,14 @@
 
 | 파트 | 상태 | 담당 | 상세 기록 |
 |------|------|------|----------|
+| 기획 | 진행중 | - | [planning/kakao_coupon_product/](./planning/kakao_coupon_product/) |
 | 서버 | 개발중 | /dev-server | [worktrees/hellobot-server/docs/features/.../status.md](./worktrees/hellobot-server/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | iOS | 대기 | /dev-ios | - |
 | Android | 대기 | /dev-android | - |
-| 웹 | 개발중 | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
+| 웹 | 개발중 (디자인 반영 완료) | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | 스튜디오 | 해당없음 | - | - |
 | 데이터 | 해당없음 | - | - |
+| QA | 검수대기 | /qa | qa-test-cases.md 작성 완료, 검수 미수행 |
 
 > 각 파트의 구현 상세 및 작업 로그는 리포 레벨 status.md에 기록합니다.
 > 이 문서에는 프로젝트 전체 요약과 파트 간 조율 사항만 기록합니다.
@@ -29,8 +31,9 @@
 
 | 파트 | 진행 요약 |
 |------|----------|
+| 기획 | 카카오 선물하기 상품 정의 진행중. 스킬 목록 분류, 하트 가격 현황 정리, 하트 상품 가격 초안 완료. 잔여: 스킬 이용권 라인업 선정, 최종 상품 구성 확정. |
 | 서버 | Entity/Service/Controller/Admin 구현 완료. 잔여: 정산 통계. api-spec.md, client-guide.md 작성 완료. |
-| 웹 | 1차 구현 + 코드 리뷰 완료. 잔여: 웹뷰 환경 검증, 일본어 번역 검수. |
+| 웹 | 1차 구현 + 코드 리뷰 + Figma 디자인 반영 완료. 잔여: 웹뷰 환경 검증, 일본어 번역 검수. |
 
 ## 확정 사항
 
@@ -44,6 +47,30 @@
 현재 없음.
 
 ## 작업 로그
+
+### 2026-04-13 — 카카오 선물하기 상품 기획
+
+- 스킬 목록 데이터 취합: 카테고리별 스킬 목록 CSV + 가격/노출 정보 CSV Left Join
+- 스킬 목록 topic/intent별 분류: xlsx 멀티시트 생성 (19개 시트, 노출 스킬 3,319건)
+- 하트 상품 현행 가격 정리: 앱/웹 전 상품 단가 비교 (heart_pricing_asis.md)
+- 카카오 선물하기 하트 상품 가격 초안: 5천/1만/3만/5만원 4종, 웹 단가 커브 기준 (kakao_gift_heart_pricing_draft.md)
+- 다음: 스킬 이용권 상품 라인업 선정
+
+### 2026-04-13 — /qa QA 테스트 케이스 작성
+
+- qa-test-cases.md 작성 완료 (74개 케이스)
+- P1 41건, P2 27건, P3 6건
+- 범위: 기능 테스트(하트/스킬), 에러/예외, UI/디자인, 서버 API, Admin, 크로스 파트, 다국어, 보안, 웹뷰
+- 테스트 데이터: 쿠프마케팅 제공 테스트 쿠폰번호 10개 포함
+
+### 2026-04-13 — 웹 파트 Figma 디자인 반영
+
+- Figma 확정 디자인 비교 후 전면 수정
+- 팝업 3종 재설계: 크기(288px), 스타일(rounded-20, shadow), 아이콘(SVG), 노란 버튼, 텍스트 갱신
+- 이용권 카드: 보라색 → 기존 쿠폰 카드 형식 (이용권 태그, 100%, 만료일, 스킬 보러가기)
+- 에러 표시: 팝업 → 토스트 변경, coopErrorPopup.tsx 삭제
+- 이미지 에셋 3종 추가 (icon_heart_24.svg, icon_coupon_24.svg, img_heart_complete.png)
+- 번역 키 갱신 (ko/en/ja)
 
 ### 2026-04-13 — 웹 파트 1차 구현 + 리뷰
 

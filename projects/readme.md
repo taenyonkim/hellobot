@@ -32,6 +32,7 @@ projects/
     ├── tasks.md                           # 파트별 과업 목록
     ├── design.md                          # 기술 설계 (/design 작성)
     ├── api-spec.md                        # 파트 간 API 명세
+    ├── qa-test-cases.md                   # QA 테스트 케이스 (/qa 작성)
     │
     │  ── 개발 환경 ──
     └── worktrees/                         # 개발용 워크트리 (필요시 생성)
@@ -72,6 +73,11 @@ projects/
   ▼
 /review 실행
   │  변경사항 검토
+  │  status.md 업데이트
+  ▼
+/qa 실행
+  │  qa-test-cases.md 작성 (요구사항/설계 기반)
+  │  테스트 수행 결과 기록
   │  status.md 최종 업데이트
 ```
 
@@ -97,6 +103,7 @@ projects/
 | `tasks.md` | /analyze | 파트별 과업 목록 |
 | `design.md` | /design | 기술 설계 (데이터 모델, 처리 로직) |
 | `api-spec.md` | /design | 서버↔클라이언트 API 계약 |
+| `qa-test-cases.md` | /qa | QA 테스트 케이스 및 검수 결과 |
 
 ### 리포 레벨 ({리포}/docs/features/해당피쳐/)
 
@@ -265,6 +272,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 | [tasks.md](./tasks.md) | 파트별 과업 목록 |
 | [design.md](./design.md) | 기술 설계 |
 | [api-spec.md](./api-spec.md) | API 명세 |
+| [qa-test-cases.md](./qa-test-cases.md) | QA 테스트 케이스 |
 ```
 
 ---
@@ -293,6 +301,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 | 웹 | 해당없음 | - | |
 | 스튜디오 | 해당없음 | - | |
 | 데이터 | 해당없음 | - | |
+| QA | 대기 | /qa | 개발 완료 후 착수 |
 
 ## 작업 로그
 
@@ -310,6 +319,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 | `설계중` | /design이 기술 설계 중 |
 | `개발중` | /dev-* 가 구현 중 |
 | `리뷰중` | /review가 검토 중 |
+| `QA중` | /qa가 테스트 케이스 작성 또는 검수 중 |
 | `완료` | 전체 완료 |
 | `보류` | 일시 중단 |
 | `대기` | 선행 작업 완료 대기 |
@@ -344,6 +354,10 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 ## 데이터 (/dev-data)
 해당없음
+
+## QA (/qa)
+- [ ] 테스트 케이스 작성 (qa-test-cases.md)
+- [ ] 테스트 수행 및 결과 기록
 
 ## 의존 관계
 - iOS, Android는 서버 API 완료 후 착수
@@ -391,5 +405,5 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 | 날짜 | 프로젝트명 | 상태 | 설명 |
 |------|-----------|------|------|
-| 2026-04-11 | [workspace-setup](./20260411-workspace-setup/) | 개발중 | 통합 개발 환경 구축 (에이전트 워크플로우, 프로젝트 구조) |
-| 2026-03-24 | [coop-integration](./20260324-coop-integration/) | 개발중 | 쿠프마케팅 카카오 선물하기 상품권 연동 (서버 개발중, 클라이언트 대기) |
+| 2026-04-11 | [workspace-setup](./20260411-workspace-setup/) | 시범운영 | 통합 개발 환경 구축 — 구조/문서/커맨드 완료, coop-integration으로 검증 중 |
+| 2026-03-24 | [coop-integration](./20260324-coop-integration/) | 개발중 | 카카오 선물하기 상품권 연동 — 기획(상품 정의 진행중), 서버/웹 개발중, iOS/Android 대기 |
