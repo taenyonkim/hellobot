@@ -48,6 +48,23 @@
 
 ## 작업 로그
 
+### 2026-04-14 — ISS-001 구현 완료
+
+- **방안 확정**: UPSERT + 처리 순서 변경 + Admin 수동 취소 상품 회수
+- **requirements.md**: F4 업데이트 (F4-1 자동 취소, F4-2 Admin 수동 취소 분리)
+- **design.md**: §5-2~§5-5 업데이트 (UPSERT 우선, 자동 복구 명시, Admin 취소 추가)
+- **서버 구현**:
+  - `HeartLog.ts`: `UseByGiftCouponRecovery` 타입 추가
+  - `coupc-marketing.ts`: `upsertUsage()` 메서드 추가, processHeartCoupon/processSkillCoupon 순서 변경, `adminCancelCoupon()` + `getAdminCancelInfo()` 메서드 추가
+  - `CoupcMarketingCouponUsage.options.ts`: cancel handler → adminCancelCoupon 호출, before hook으로 guard 정보 조회
+
+### 2026-04-14 — /review 코드 리뷰 → ISS-004, ISS-005 등록
+
+- 리뷰 대상: hellobot-server 워크트리 변경분 (에러 메시지 매핑, Admin 라벨, description 접두사 제거)
+- ISS-004: useCoupon L0 재검증 에러코드가 check와 불일치 (P2)
+- ISS-005: admin locale 띄어쓰기 불일치 unuse/cancel (P3)
+- 다음: 각 이슈 해결 방안 논의 필요
+
 ### 2026-04-14 — ISS-003 등록
 
 - 발견: 사용 완료 모달에 쿠폰 유효기간(EndDay)이 교환 상품의 유효기간으로 오인되어 표시됨

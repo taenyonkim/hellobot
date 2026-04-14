@@ -21,8 +21,13 @@
 - [x] Admin 페이지 (상품 관리 + 스킬 이용권 자동 생성, 사용 이력, API 로그)
 - [x] API 테스트 (필수 동작 + 전체 테스트)
 - [ ] Admin 정산 통계 custom page
-- [ ] ISS-001: 쿠폰 취소 후 재사용 시 CM_007 에러 + 하트 누수 대응 (해결 방안 논의 필요)
+- [x] ISS-001: useCoupon 처리 순서 변경 — usage UPSERT 우선 + chargeHeart/issueCoupon 후속
+- [x] ISS-001: Admin 수동 취소 시 상품 회수 (하트 차감 + 회수 로그, 이용권 삭제)
+- [x] ISS-001: design.md §5-2, §5-3, §5-4, §5-5 변경 반영
 - [ ] ISS-003: check API 응답에서 expiryDate 제거 검토 (해결 방안 논의 필요)
+- [ ] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (해결 방안 논의 필요)
+- [ ] ISS-005: admin locale 띄어쓰기 통일 — unuse/cancel 라벨 (해결 방안 논의 필요)
+- [ ] ISS-006: 결제취소 쿠폰(8099) 별도 에러 메시지 추가 검토 (해결 방안 논의 필요)
 - [x] api-spec.md 작성 (클라이언트용 API 명세)
 - [x] client-guide.md 작성 (클라이언트 개발 가이드)
 

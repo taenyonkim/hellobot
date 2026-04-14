@@ -254,10 +254,12 @@ coupc_marketing_product          (상품 정의)
 3. L0 재조회 → 유효성 재확인
 4. L1 사용 승인 요청
    - 실패/타임아웃 → L3 망취소 시도 → 에러 반환
-5. L1 성공 → HeartService.chargeHeart()
-   - 실패 → L2 취소 시도 → 에러 반환 (CM_007)
-6. coupc_marketing_coupon_usage 기록 (status: used)
-7. 응답 반환 { success: true, productType: "heart", heartQuantity }
+5. L1 성공 → usage UPSERT (status: "used") — 먼저 기록
+   - INSERT 또는 ON CONFLICT (user_seq, coupon_code) → UPDATE
+6. HeartService.chargeHeart()
+   - 실패 → L2 자동 취소 + usage UPDATE (status: "canceled") → 에러 반환 (CM_007)
+7. usage에 heartLogSeq 업데이트
+8. 응답 반환 { success: true, productType: "heart", heartQuantity }
 ```
 
 ### 5-3. use 처리 — 스킬 교환권
@@ -268,10 +270,11 @@ coupc_marketing_product          (상품 정의)
 3. L0 재조회 → 유효성 재확인
 4. L1 사용 승인 요청
    - 실패/타임아웃 → L3 망취소 시도 → 에러 반환
-5. L1 성공 → CouponService로 100% 할인 쿠폰 발급
-   - 실패 → L2 취소 시도 → 에러 반환 (CM_008)
-6. coupc_marketing_coupon_usage 기록 (status: used)
-7. 응답 반환 { success: true, productType: "skill", issuedCouponSeq, ... }
+5. L1 성공 → usage UPSERT (status: "used") — 먼저 기록
+6. CouponService로 100% 할인 쿠폰 발급
+   - 실패 → L2 자동 취소 + usage UPDATE (status: "canceled") → 에러 반환 (CM_008)
+7. usage에 issuedCouponSeq 업데이트
+8. 응답 반환 { success: true, productType: "skill", issuedCouponSeq, ... }
 ```
 
 ### 5-4. 자동 복구 (Compensation)
@@ -279,8 +282,28 @@ coupc_marketing_product          (상품 정의)
 | 실패 시점 | 복구 동작 | 결과 |
 |----------|----------|------|
 | L1 타임아웃 | L3 망취소 | 쿠폰 원복, 사용자 재시도 가능 |
-| L1 성공 후 하트 충전 실패 | L2 취소 | 쿠프마케팅 승인 취소, 쿠폰 원복 |
-| L1 성공 후 쿠폰 발급 실패 | L2 취소 | 쿠프마케팅 승인 취소, 쿠폰 원복 |
+| L1 성공 후 하트 충전 실패 | L2 취소 + usage canceled | 쿠프마케팅 승인 취소, 쿠폰 원복. 하트 미지급 상태이므로 회수 불필요. |
+| L1 성공 후 쿠폰 발급 실패 | L2 취소 + usage canceled | 쿠프마케팅 승인 취소, 쿠폰 원복. 이용권 미발급 상태이므로 회수 불필요. |
+
+> **누수 방지**: usage를 상품 지급보다 먼저 기록하여, 지급 실패 시에도 중복 사용 방지 상태가 유지됨.
+> **재사용 지원**: usage INSERT를 UPSERT로 처리하여, 취소 후 재사용 시 기존 레코드를 갱신.
+
+### 5-5. Admin 수동 취소
+
+운영자가 Admin에서 사용 완료된 쿠폰을 취소하는 경우, 지급된 상품 회수를 함께 수행한다.
+
+```
+1. Admin 취소 버튼 클릭
+2. Guard 메시지에 상품 정보 + 회수 가능 여부 표시
+   - 하트: 충전 수량, 현재 잔여 하트 (부족 시 경고)
+   - 스킬: 이용권 사용 여부 (사용 완료 시 경고)
+3. 운영자 확인 → 취소 진행 (회수 불가 상태에서도 진행 가능)
+4. 상품 회수:
+   - 하트: useHeart(UseByGiftCouponRecovery)로 차감 + 회수 로그. 잔여 부족 시 남은 만큼만 차감
+   - 스킬: 발급된 100% 할인 쿠폰 삭제 (Coupon.delete)
+5. 쿠프마케팅 L2 취소 API 호출
+6. usage status → "canceled", canceledAt 기록
+```
 
 ---
 
@@ -398,4 +421,4 @@ use API → skill 성공 시:
 
 | 날짜 | 이슈 | 변경 내용 |
 |------|------|----------|
-| | | (ISS-001 해결 시 §5-2, §5-3, §5-4 변경 예정) |
+| 2026-04-14 | ISS-001 | §5-2, §5-3: usage UPSERT 우선 기록 후 상품 지급 (순서 변경). §5-4: 자동 복구 시 usage canceled 처리 명시. §5-5: Admin 수동 취소 + 상품 회수 로직 추가. |
