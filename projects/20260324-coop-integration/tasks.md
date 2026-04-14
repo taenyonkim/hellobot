@@ -25,9 +25,9 @@
 - [x] ISS-001: Admin 수동 취소 시 상품 회수 (하트 차감 + 회수 로그, 이용권 삭제)
 - [x] ISS-001: design.md §5-2, §5-3, §5-4, §5-5 변경 반영
 - [x] 명칭 변경: coupc-marketing → coop-marketing (파일명, 클래스명, 설정키 등. DB 테이블명은 유지)
-- [ ] ISS-003: check API 응답에서 expiryDate 제거 검토 (해결 방안 논의 필요)
-- [ ] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (해결 방안 논의 필요)
-- [ ] ISS-005: admin locale 띄어쓰기 통일 — unuse/cancel 라벨 (해결 방안 논의 필요)
+- [x] ISS-003: check API 응답에서 expiryDate 필드 제거 (DTO + Service)
+- [x] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (8003→CM_002, 8005→CM_003, UseYN→CM_003)
+- [x] ISS-005: admin locale 띄어쓰기 통일 — cancel "사용취소" → "사용 취소"
 - [ ] ISS-006: 결제취소 쿠폰(8099) 별도 에러 메시지 추가 검토 (해결 방안 논의 필요)
 - [x] api-spec.md 작성 (클라이언트용 API 명세)
 - [x] client-guide.md 작성 (클라이언트 개발 가이드)
@@ -51,8 +51,8 @@
 ## 웹 (/dev-web)
 - [x] 쿠폰 등록 UI에 상품권 코드 처리 연동
 - [x] 하트 충전 / 스킬 교환 결과 화면
-- [ ] ISS-002: 미로그인 상태에서 쿠폰 입력/등록 시 로그인 안내 처리 (해결 방안 논의 필요)
-- [ ] ISS-003: 완료 모달에서 유효기간 표시 제거 (해결 방안 논의 필요)
+- [x] ISS-002: 미로그인 상태에서 쿠폰 입력/등록 시 로그인 안내 처리 (입력 포커스+등록 버튼에서 goToLogin)
+- [x] ISS-003: 완료 모달/이용권 카드에서 유효기간 표시 제거
 
 ## 스튜디오 (/dev-studio)
 해당없음

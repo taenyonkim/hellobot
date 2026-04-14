@@ -49,8 +49,7 @@ Content-Type: application/json
     "productType": "heart",
     "productName": "카카오 하트 충전권 5천원",
     "heartQuantity": 25,
-    "couponName": "카카오 선물하기 하트 충전권",
-    "expiryDate": "20270409"
+    "couponName": "카카오 선물하기 하트 충전권"
   }
 }
 ```
@@ -66,8 +65,7 @@ Content-Type: application/json
     "fixedMenuSeq": 2166,
     "chatbotSeq": 123,
     "skillName": "그 사람과 나의 사주 궁합",
-    "couponName": "카카오 선물하기 스킬 교환권",
-    "expiryDate": "20270409"
+    "couponName": "카카오 선물하기 스킬 교환권"
   }
 }
 ```
@@ -96,7 +94,6 @@ Content-Type: application/json
 | chatbotSeq | number | skill 타입 | 챗봇 식별자 |
 | skillName | string | skill 타입 | 스킬명 |
 | couponName | string | valid=true | 쿠프마케팅 쿠폰명 |
-| expiryDate | string | valid=true | 유효기간 만료일 (YYYYMMDD) |
 | errorCode | string | valid=false | 에러 코드 |
 | errorMessage | string | valid=false | 에러 메시지 (로케일별 번역) |
 

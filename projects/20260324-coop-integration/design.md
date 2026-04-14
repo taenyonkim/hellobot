@@ -92,7 +92,6 @@
   productName: string,      // "카카오 하트 충전권 5천원"
   heartQuantity: number,    // 25
   couponName: string,       // "카카오 선물하기 하트 충전권"
-  expiryDate: string        // "20270409" (YYYYMMDD)
 }
 
 // valid: true — 스킬 교환권
@@ -104,7 +103,6 @@
   chatbotSeq: number,       // 123
   skillName: string,        // "그 사람과 나의 사주 궁합"
   couponName: string,       // "카카오 선물하기 스킬 교환권"
-  expiryDate: string        // "20270409"
 }
 
 // valid: false — 에러
@@ -421,4 +419,5 @@ use API → skill 성공 시:
 
 | 날짜 | 이슈 | 변경 내용 |
 |------|------|----------|
+| 2026-04-14 | ISS-003 | check API 응답에서 expiryDate 필드 제거. 교환된 상품(하트/이용권)에는 유효기간이 없으므로 쿠폰 만료일을 클라이언트에 전달할 필요 없음. |
 | 2026-04-14 | ISS-001 | §5-2, §5-3: usage UPSERT 우선 기록 후 상품 지급 (순서 변경). §5-4: 자동 복구 시 usage canceled 처리 명시. §5-5: Admin 수동 취소 + 상품 회수 로직 추가. |

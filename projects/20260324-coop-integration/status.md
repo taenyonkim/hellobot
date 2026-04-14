@@ -48,6 +48,27 @@
 
 ## 작업 로그
 
+### 2026-04-14 — ISS-003/004/005 서버 구현 완료
+
+- ISS-003: check API 응답에서 expiryDate 필드 제거 (DTO + Service heart/skill 응답)
+- ISS-004: useCoupon L0 재검증 에러코드 세분화 — UseYN→CM_003, 8003→CM_002, 8005→CM_003 (check와 동일)
+- ISS-005: admin locale cancel "사용취소" → "사용 취소" 띄어쓰기 통일
+
+### 2026-04-14 — ISS-003 웹 구현 완료
+
+- 하트 충전 완료 팝업: expiryDate prop 및 유효기간 표시 제거, formatExpiryForDisplay 함수 삭제
+- 스킬 이용권 카드: expiryDate 만료일/남은 일수 표시 제거, parseExpiryDate/formatExpiryDate 함수 삭제
+- couponCodeRegister: expiryDate 전달 체인 제거 (savedExpiryDate, CoopPopupState, onSkillVoucherIssued)
+- types/coop.ts: CoopSkillVoucher에서 expiryDate 필드 제거
+- 번역 키 coop_heart_complete_expiry 제거 (ko/en/ja)
+- 잔여: 서버 check API 응답에서 expiryDate 제거 검토
+
+### 2026-04-14 — ISS-002 웹 구현 완료
+
+- `couponCodeRegister.tsx`에 미로그인(anonymous) 체크 추가
+- 입력창 포커스 시: blur + `goToLogin('?fallbackUrl=/coupon')` 호출 (입력 자체를 차단)
+- 기존 `LoginGuideBadge`와 동일한 `goToLogin` 패턴 사용
+
 ### 2026-04-14 — ISS-001 구현 완료
 
 - **방안 확정**: UPSERT + 처리 순서 변경 + Admin 수동 취소 상품 회수
