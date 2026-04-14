@@ -48,6 +48,12 @@
 
 ## 작업 로그
 
+### 2026-04-14 — ISS-006 서버 구현 완료
+
+- CM_PAYMENT_CANCELED_COUPON(CM_010) 에러코드 추가 (code.ts)
+- 한국어 메시지 "결제가 취소된 쿠폰입니다" (ko.ts), ja/en은 빈 문자열 (추후 번역)
+- check API + useCoupon L0 재검증 모두에 8099 → CM_010 매핑 추가
+
 ### 2026-04-14 — ISS-003/004/005 서버 구현 완료
 
 - ISS-003: check API 응답에서 expiryDate 필드 제거 (DTO + Service heart/skill 응답)
