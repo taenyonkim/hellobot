@@ -50,6 +50,16 @@
 
 ## 작업 로그
 
+### 2026-04-15 — ISS-007 웹 구현 완료
+
+- ISS-002에서 `goToLogin()` 직접 호출로 구현된 미로그인 처리를 Figma 디자인대로 팝업 방식으로 변경
+- `coopLoginGuidePopup.tsx` 신규 생성: 경고 아이콘, 안내 문구, "로그인하기"/"다음에 할래요" 버튼
+- `couponCodeRegister.tsx`: `handleInputFocus`에서 `goToLogin()` → `setShowLoginGuide(true)` 변경
+- 에셋 추가: `icon_warning_24.svg` (빨간 원형 느낌표)
+- 번역 키 4건 추가 (ko/en/ja): `coop_login_guide_title`, `_message`, `_button`, `_dismiss`
+- 리뷰 반영: dim 클릭 닫기 차단 (`closeModal={undefined}`), 불필요한 `inputRef` 제거
+- 1회 노출 제한: sessionStorage로 dismissed 상태 관리 — "다음에 할래요" 클릭 시 세션 내 재노출 안 함
+
 ### 2026-04-14 — ISS-006 서버 구현 완료
 
 - CM_PAYMENT_CANCELED_COUPON(CM_010) 에러코드 추가 (code.ts)

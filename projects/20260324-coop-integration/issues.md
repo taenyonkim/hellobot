@@ -13,6 +13,32 @@
 
 ---
 
+### ISS-007: 미로그인 시 쿠폰 입력 포커스에서 로그인 안내 팝업 대신 즉시 리다이렉트됨
+
+| 항목 | 내용 |
+|------|------|
+| 분류 | bug |
+| 발견일 | 2026-04-15 |
+| 해결일 | 2026-04-15 |
+| 심각도 | P2 |
+| 영향 파트 | 웹 |
+
+**현상**: ISS-002 해결 시 `goToLogin()` 직접 호출로 구현하여, Figma 디자인의 로그인 안내 팝업(S6)이 누락됨. 입력 포커스 시 팝업 없이 즉시 로그인 화면으로 리다이렉트.
+
+**원인**: Figma 확정 디자인에 로그인 안내 팝업(node 23:3954)이 있었으나, 구현 시 팝업 대신 `goToLogin()` 직접 호출로 대체됨.
+
+**해결**:
+- `coopLoginGuidePopup.tsx` 신규 생성 (Figma 디자인 1:1 반영)
+- `couponCodeRegister.tsx`의 `handleInputFocus`에서 `goToLogin()` → 팝업 표시로 변경
+- "로그인하기" 버튼 → `goToLogin()`, "다음에 할래요" → 팝업 닫기
+- dim 클릭 시 닫기 차단 (`closeModal={undefined}`) — 반드시 버튼으로만 닫기
+- 1회 노출 제한: sessionStorage로 dismissed 상태 관리, "다음에 할래요" 클릭 시 세션 내 재노출 안 함
+- 아이콘 에셋 추가 (`icon_warning_24.svg`)
+- 번역 키 4건 추가 (ko/en/ja)
+- `consts/common.ts`에 `COOP_LOGIN_GUIDE_DISMISSED` 스토리지 키 추가
+
+---
+
 ## 해결된 이슈
 
 ### ISS-006: 쿠프마케팅 응답코드 8099(결제취소 쿠폰)에 대한 별도 에러 메시지 없음
