@@ -31,7 +31,7 @@ projects/
     ├── status.md                          # 진행 상태, 워크트리/브랜치 현황
     ├── tasks.md                           # 파트별 과업 목록
     ├── issues.md                          # 이슈 추적 (QA/리뷰/개발 중 발견, 모든 에이전트 작성)
-    ├── design.md                          # 기술 설계 (/design 작성)
+    ├── design.md                          # 기술 설계 (/architect 작성)
     ├── api-spec.md                        # 파트 간 API 명세
     ├── qa-test-cases.md                   # QA 테스트 케이스 (/qa 작성)
     │
@@ -62,7 +62,7 @@ projects/
   │  tasks.md 작성 (파트별 과업 분류)
   │  status.md 생성 (초기 상태)
   ▼
-/design 실행
+/architect 실행
   │  design.md 작성 (기술 설계, 데이터 흐름, 시퀀스)
   │  api-spec.md 작성 (파트 간 API 계약)
   │  status.md 업데이트
@@ -114,8 +114,8 @@ projects/
 | `status.md` | 모든 에이전트 | 진행 상태, 브랜치/워크트리 현황 |
 | `tasks.md` | /analyze | 파트별 과업 목록 |
 | `issues.md` | 모든 에이전트 | 이슈 추적 (QA/리뷰/개발 중 발견된 버그, 예외, 개선사항) |
-| `design.md` | /design | 기술 설계 (데이터 모델, 처리 로직) |
-| `api-spec.md` | /design | 서버↔클라이언트 API 계약 |
+| `design.md` | /architect | 기술 설계 (데이터 모델, 처리 로직) |
+| `api-spec.md` | /architect | 서버↔클라이언트 API 계약 |
 | `qa-test-cases.md` | /qa | QA 테스트 케이스 및 검수 결과 |
 
 ### 리포 레벨 ({리포}/docs/features/해당피쳐/)
@@ -198,7 +198,7 @@ output metric
 - 스크린샷, 목업 이미지
 - 디자인 스펙 문서
 
-`/design` 에이전트가 기술 설계 시 이 디렉토리의 파일을 참고합니다.
+`/architect` 에이전트가 기술 설계 시 이 디렉토리의 파일을 참고합니다.
 
 ### planning/ (기획 과업 산출물)
 
@@ -284,7 +284,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 | [status.md](./status.md) | 전체 진행 상태 |
 | [tasks.md](./tasks.md) | 파트별 과업 목록 |
 | [issues.md](./issues.md) | 이슈 추적 |
-| [design.md](./design.md) | 기술 설계 |
+| [design.md](./architect.md) | 기술 설계 |
 | [api-spec.md](./api-spec.md) | API 명세 |
 | [qa-test-cases.md](./qa-test-cases.md) | QA 테스트 케이스 |
 ```
@@ -330,7 +330,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 | 상태 | 설명 |
 |------|------|
 | `분석중` | /analyze가 요구사항 분석 중 |
-| `설계중` | /design이 기술 설계 중 |
+| `설계중` | /architect이 기술 설계 중 |
 | `개발중` | /dev-* 가 구현 중 |
 | `리뷰중` | /review가 검토 중 |
 | `QA중` | /qa가 테스트 케이스 작성 또는 검수 중 |

@@ -144,7 +144,7 @@ hellobot/                              ← 워크스페이스 루트
 /analyze (PM/기획)        → 요구사항 분석, 영향 범위, 과업 분류
     │
     ▼
-/design (기술 설계)        → API 계약, 데이터 모델, 시퀀스
+/architect (기술 설계)      → API 계약, 데이터 모델, 시퀀스
     │
     ▼
 /dev-server               ┐
@@ -172,7 +172,7 @@ hellobot/                              ← 워크스페이스 루트
 | 커맨드 | 역할 | 담당 리포 |
 |--------|------|-----------|
 | `/analyze` | PM/기획자 — 요구사항 분석, 과업 분류, 우선순위 | 전체 (읽기만) |
-| `/design` | 기술 설계자 — API 계약, 데이터 모델, 시퀀스 | 관련 리포 (읽기만) |
+| `/architect` | 아키텍트 — API 계약, 데이터 모델, 시퀀스 | 관련 리포 (읽기만) |
 | `/dev-server` | 서버 개발자 | hellobot-server |
 | `/dev-ios` | iOS 개발자 | hellobot_iOS |
 | `/dev-android` | Android 개발자 | hellobot_android |
@@ -188,7 +188,7 @@ hellobot/                              ← 워크스페이스 루트
 에이전트들은 **프로젝트 문서**를 통해 소통합니다:
 
 1. `/analyze` → `projects/YYYYMMDD-feature-name/readme.md`, `tasks.md` 작성
-2. `/design` → `design.md`, `api-spec.md` 작성
+2. `/architect` → `design.md`, `api-spec.md` 작성
 3. `/dev-*` → 워크트리에서 구현 후 `status.md` 업데이트
 4. `/review` → 변경사항 + 프로젝트 문서 대조 검증
 5. `/qa` → `qa-test-cases.md` 작성, 검수 결과 관리
@@ -243,11 +243,11 @@ QA, 리뷰, 개발 등 **어떤 단계에서든** 설계 시 고려하지 못한
 | `/dev-*` | O | O | 담당 파트 내 | 담당 파트 내 | O |
 | `/review` | O | O | 제안 (코멘트) | O | X |
 | `/qa` | O | O | 제안 (코멘트) | O | X |
-| `/design` | O | O | O | O | X |
+| `/architect` | O | O | O | O | X |
 | `/analyze` | O | O | 요구사항 수정 | O | X |
 | `/workspace` | O | O | X | X | X |
 
-> **원칙**: 이슈를 발견한 에이전트가 issues.md에 기록하고, 자신의 역할 범위 내에서 처리 가능한 만큼 진행합니다. 설계 변경이 크면 `/design`을 호출하도록 사용자에게 안내합니다.
+> **원칙**: 이슈를 발견한 에이전트가 issues.md에 기록하고, 자신의 역할 범위 내에서 처리 가능한 만큼 진행합니다. 설계 변경이 크면 `/architect`를 호출하도록 사용자에게 안내합니다.
 
 상세 가이드 및 템플릿: [projects/readme.md](projects/readme.md)
 

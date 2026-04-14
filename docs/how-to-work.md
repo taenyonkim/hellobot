@@ -103,7 +103,7 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 | 커맨드 | 역할 | 하는 일 | 담당 리포 |
 |--------|------|---------|-----------|
 | `/analyze` | PM/기획자 | 요구사항 분석, 영향 범위 파악, 과업 분류 | 전체 (읽기만) |
-| `/design` | 기술 설계자 | API 설계, 데이터 모델, 시퀀스 다이어그램 | 관련 리포 (읽기만) |
+| `/architect` | 기술 설계자 | API 설계, 데이터 모델, 시퀀스 다이어그램 | 관련 리포 (읽기만) |
 | `/dev-server` | 서버 개발자 | 백엔드 API 구현 | hellobot-server |
 | `/dev-ios` | iOS 개발자 | iOS 앱 기능 구현 | hellobot_iOS |
 | `/dev-android` | Android 개발자 | Android 앱 기능 구현 | hellobot_android |
@@ -128,7 +128,7 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
 │  1. 분석     │ ──→ │  2. 설계     │ ──→ │  3. 구현          │ ──→ │  4. 검토     │
-│  /analyze   │     │  /design    │     │  /dev-* (워크트리) │     │  /review    │
+│  /analyze   │     │  /architect    │     │  /dev-* (워크트리) │     │  /review    │
 └─────────────┘     └─────────────┘     └──────────────────┘     └─────────────┘
   readme.md           design.md          워크트리에서 코드 구현     코드 리뷰
   tasks.md            api-spec.md        status.md 갱신           최종 검증
@@ -143,10 +143,10 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 
 → `projects/20260412-share-result/` 디렉토리에 readme.md, tasks.md, status.md 생성
 
-### 단계 2: 설계 (`/design`)
+### 단계 2: 설계 (`/architect`)
 
 ```
-/design 20260412-share-result
+/architect 20260412-share-result
 ```
 
 → design.md, api-spec.md 생성
@@ -191,7 +191,7 @@ Claude가 `projects/20260412-share-result/`에 문서를 생성합니다.
 #### Step 2 — 기술 설계
 
 ```
-/design 20260412-share-result
+/architect 20260412-share-result
 ```
 
 Claude가 design.md와 api-spec.md를 작성합니다. api-spec.md는 서버↔클라이언트 간 **계약서** 역할을 합니다.
@@ -252,7 +252,7 @@ projects/20260412-share-result/
 
 ```
 /analyze 관리자용 사용자 통계 조회 API 추가
-/design 20260412-admin-user-stats
+/architect 20260412-admin-user-stats
 /dev-server 20260412-admin-user-stats
 ```
 
@@ -275,7 +275,7 @@ coupon.ts의 isExpired() 메서드 확인해줘.
 
 ```
 /analyze 인앱 결제를 네이티브 결제로 전환
-/design 20260412-native-iap
+/architect 20260412-native-iap
 /dev-server 20260412-native-iap      # 1순위
 /dev-ios 20260412-native-iap         # 2순위
 /dev-android 20260412-native-iap     # 2순위
@@ -302,8 +302,8 @@ projects/ 에서 현재 개발중인 프로젝트 목록 보여줘
 ```
 readme.md    "무엇을 만드는가"     → /analyze가 작성, 모든 에이전트가 참조
 tasks.md     "누가 무엇을 하는가"   → /analyze가 작성, /dev-*가 자기 과업 확인
-design.md    "어떻게 만드는가"     → /design이 작성, /dev-*가 구현 기준으로 사용
-api-spec.md  "어떻게 통신하는가"   → /design이 작성, 서버↔클라이언트 계약서
+design.md    "어떻게 만드는가"     → /architect이 작성, /dev-*가 구현 기준으로 사용
+api-spec.md  "어떻게 통신하는가"   → /architect이 작성, 서버↔클라이언트 계약서
 status.md    "지금 어디까지 됐는가" → 모든 에이전트가 업데이트, 워크트리/브랜치 현황 포함
 ```
 
@@ -412,7 +412,7 @@ projects/20260412-share-result/status.md 보여줘
 ```
 # 분석/설계
 /analyze {요구사항 설명}
-/design {프로젝트명}
+/architect {프로젝트명}
 
 # 구현 (워크트리에서 작업)
 /dev-server {프로젝트명 또는 작업 지시}
