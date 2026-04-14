@@ -16,13 +16,13 @@
 | 파트 | 상태 | 담당 | 상세 기록 |
 |------|------|------|----------|
 | 기획 | 진행중 | - | [planning/kakao_coupon_product/](./planning/kakao_coupon_product/) |
-| 서버 | 개발중 | /dev-server | [worktrees/hellobot-server/docs/features/.../status.md](./worktrees/hellobot-server/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
+| 서버 | 개발완료 (정산 통계 제외) | /dev-server | [worktrees/hellobot-server/docs/features/.../status.md](./worktrees/hellobot-server/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | iOS | 대기 | /dev-ios | - |
 | Android | 대기 | /dev-android | - |
-| 웹 | 개발중 (디자인 반영 완료) | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
+| 웹 | 개발완료 | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | 스튜디오 | 해당없음 | - | - |
 | 데이터 | 해당없음 | - | - |
-| QA | 검수대기 | /qa | qa-test-cases.md 작성 완료, 검수 미수행 |
+| QA | 검수대기 | /qa | qa-test-cases.md 작성 완료 (74건), 검수 미수행 |
 
 > 각 파트의 구현 상세 및 작업 로그는 리포 레벨 status.md에 기록합니다.
 > 이 문서에는 프로젝트 전체 요약과 파트 간 조율 사항만 기록합니다.
@@ -32,8 +32,10 @@
 | 파트 | 진행 요약 |
 |------|----------|
 | 기획 | 카카오 선물하기 상품 정의 진행중. 스킬 목록 분류, 하트 가격 현황 정리, 하트 상품 가격 초안 완료. 잔여: 스킬 이용권 라인업 선정, 최종 상품 구성 확정. |
-| 서버 | Entity/Service/Controller/Admin 구현 완료. 잔여: 정산 통계. api-spec.md, client-guide.md 작성 완료. |
-| 웹 | 1차 구현 + 코드 리뷰 + Figma 디자인 반영 완료. 잔여: 웹뷰 환경 검증, 일본어 번역 검수. |
+| 서버 | 핵심 기능 + 이슈 6건(ISS-001~006) 모두 해결. 잔여: Admin 정산 통계 custom page. |
+| 웹 | 구현 + 디자인 반영 + 이슈 2건(ISS-002, ISS-003) 해결 완료. 잔여: 웹뷰 환경 검증, 일본어 번역 검수. |
+| iOS | 대기. api-spec.md, client-guide.md 준비 완료. |
+| Android | 대기. api-spec.md, client-guide.md 준비 완료. |
 
 ## 확정 사항
 
@@ -67,7 +69,7 @@
 - couponCodeRegister: expiryDate 전달 체인 제거 (savedExpiryDate, CoopPopupState, onSkillVoucherIssued)
 - types/coop.ts: CoopSkillVoucher에서 expiryDate 필드 제거
 - 번역 키 coop_heart_complete_expiry 제거 (ko/en/ja)
-- 잔여: 서버 check API 응답에서 expiryDate 제거 검토
+- (서버 expiryDate 제거는 ISS-003 서버 구현에서 완료)
 
 ### 2026-04-14 — ISS-002 웹 구현 완료
 
