@@ -103,7 +103,8 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 | 커맨드 | 역할 | 하는 일 | 담당 리포 |
 |--------|------|---------|-----------|
 | `/analyze` | PM/기획자 | 요구사항 분석, 영향 범위 파악, 과업 분류 | 전체 (읽기만) |
-| `/architect` | 기술 아키텍처자 | API 설계, 데이터 모델, 시퀀스 다이어그램 | 관련 리포 (읽기만) |
+| `/design` | 디자이너 | Figma 디자인 스펙 추출, 디자인 가이드 정리 | 프로젝트 문서 |
+| `/architect` | 기술 설계자 | API 설계, 데이터 모델, 시퀀스 다이어그램 | 관련 리포 (읽기만) |
 | `/dev-server` | 서버 개발자 | 백엔드 API 구현 | hellobot-server |
 | `/dev-ios` | iOS 개발자 | iOS 앱 기능 구현 | hellobot_iOS |
 | `/dev-android` | Android 개발자 | Android 앱 기능 구현 | hellobot_android |
@@ -126,13 +127,13 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 ## 4. 피쳐 개발 워크플로우
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
-│  1. 분석     │ ──→ │  2. 설계     │ ──→ │  3. 구현          │ ──→ │  4. 검토     │
-│  /analyze   │     │  /architect    │     │  /dev-* (워크트리) │     │  /review    │
-└─────────────┘     └─────────────┘     └──────────────────┘     └─────────────┘
-  readme.md           architecture.md          워크트리에서 코드 구현     코드 리뷰
-  tasks.md            api-spec.md        status.md 갱신           최종 검증
-  status.md           status.md 갱신
+┌──────────┐   ┌──────────┐   ┌──────────┐   ┌───────────────┐   ┌──────────┐
+│ 1. 분석   │──→│ 2. 디자인 │──→│ 3. 설계   │──→│ 4. 구현        │──→│ 5. 검토   │
+│ /analyze │   │ /design  │   │/architect│   │/dev-* (워크트리)│   │ /review  │
+└──────────┘   └──────────┘   └──────────┘   └───────────────┘   └──────────┘
+ readme.md      design-spec   architecture    코드 구현            코드 리뷰
+ tasks.md       .md           .md             tasks.md 체크        최종 검증
+                              api-spec.md
 ```
 
 ### 단계 1: 분석 (`/analyze`)
@@ -143,15 +144,25 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 
 → `projects/20260412-share-result/` 디렉토리에 readme.md, tasks.md, status.md 생성
 
-### 단계 2: 설계 (`/architect`)
+### 단계 2: 디자인 (`/design`)
+
+디자이너가 Figma 작업을 완료하고 `designs/designs.md`에 링크를 입력한 후:
+
+```
+/design 20260412-share-result
+```
+
+→ Figma에서 스펙을 추출하여 design-spec.md 생성 (계약 문서)
+
+### 단계 3: 설계 (`/architect`)
 
 ```
 /architect 20260412-share-result
 ```
 
-→ architecture.md, api-spec.md 생성
+→ architecture.md, api-spec.md 생성 (design-spec.md 참조)
 
-### 단계 3: 구현 (`/dev-*`)
+### 단계 4: 구현 (`/dev-*`)
 
 ```
 /dev-server 20260412-share-result
@@ -166,7 +177,7 @@ hellobot/                              ← 워크스페이스 루트 (여기서 
 /dev-android 20260412-share-result
 ```
 
-### 단계 4: 검토 (`/review`)
+### 단계 5: 검토 (`/review`)
 
 ```
 /review 20260412-share-result
@@ -303,6 +314,7 @@ projects/ 에서 현재 개발중인 프로젝트 목록 보여줘
 readme.md         "무엇을 만드는가"     → /analyze가 작성, 모든 에이전트가 참조
 tasks.md          "누가 무엇을 하는가"   → /analyze가 작성, 과업 완료의 단일 소스
 issues.md         "무엇이 발견되었나"   → 발견한 에이전트가 등록, 이슈 레지스트리
+design-spec.md    "어떻게 보이는가"     → /design이 작성, 계약 문서 (Changelog 필수)
 architecture.md   "어떻게 만드는가"     → /architect이 작성, 계약 문서 (Changelog 필수)
 api-spec.md       "어떻게 통신하는가"   → /architect이 작성, 계약 문서 (Changelog 필수)
 status.md         "지금 어디까지 됐는가" → 경량 대시보드 (~30줄), 파트별 현황만

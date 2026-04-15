@@ -17,20 +17,22 @@ projects/
     │
     │  ── 입력 문서 (사용자 제공) ──
     ├── 1pager.md                          # 프로젝트 1-pager
-    ├── designs/                           # 외부 디자인 파일 (이미지, Figma, 와이어프레임)
+    ├── designs/                           # 디자인 원본 자료 (Figma 링크, 스크린샷, 와이어프레임)
+    │   └── designs.md                     # Figma 링크, 화면 목록, 반영 현황
+    ├── references/                        # 외부 참조 자료 (API 문서, 제안서, 프로세스 등)
     │
     │  ── 기획 문서 (모든 파트 공통 참조) ──
     ├── requirements.md                    # 요구사항 정의서
     ├── user-stories.md                    # 사용자 스토리
     ├── screen-plan.md                     # 화면 기획서
-    ├── references/                        # 외부 참조 자료 (API 문서, 제안서, 프로세스 등)
     ├── planning/                          # 기획 과업 산출물 (리서치, 분석, 협의 결과)
     │
     │  ── 에이전트 생성 문서 ──
     ├── readme.md                          # 프로젝트 개요 (/analyze 작성)
-    ├── status.md                          # 진행 상태, 워크트리/브랜치 현황
+    ├── status.md                          # 진행 상태 (경량 대시보드)
     ├── tasks.md                           # 파트별 과업 목록
-    ├── issues.md                          # 이슈 추적 (QA/리뷰/개발 중 발견, 모든 에이전트 작성)
+    ├── issues.md                          # 이슈 레지스트리 (모든 에이전트 작성)
+    ├── design-spec.md                     # 디자인 스펙 (/design 작성, 계약 문서)
     ├── architecture.md                     # 기술 아키텍처 (/architect 작성)
     ├── api-spec.md                        # 파트 간 API 명세
     ├── qa-test-cases.md                   # QA 테스트 케이스 (/qa 작성)
@@ -62,31 +64,34 @@ projects/
   │  tasks.md 작성 (파트별 과업 분류)
   │  status.md 생성 (초기 상태)
   ▼
+디자인 입력 (사용자)
+  │  디자이너가 Figma 작업 완료 후 designs/designs.md에 링크 입력
+  ▼
+/design 실행
+  │  Figma에서 디자인 스펙 추출
+  │  design-spec.md 작성 (계약 문서)
+  ▼
 /architect 실행
   │  architecture.md 작성 (기술 아키텍처, 데이터 흐름, 시퀀스)
   │  api-spec.md 작성 (파트 간 API 계약)
-  │  status.md 업데이트
   ▼
 /dev-* 실행 (파트별)
-  │  워크트리 생성 (필요시, 사용자 확인 후)
-  │  worktrees/ 내에서 코드 구현
-  │  status.md 업데이트 (브랜치/워크트리 현황 포함)
+  │  워크트리에서 코드 구현
+  │  과업 완료 시 tasks.md 체크
   ▼
 /review 실행
   │  변경사항 검토
-  │  status.md 업데이트
+  │  이슈 발견 시 issues.md + tasks.md
   ▼
 /qa 실행
   │  qa-test-cases.md 작성 (요구사항/설계 기반)
-  │  테스트 수행 결과 기록
-  │  status.md 최종 업데이트
+  │  이슈 발견 시 issues.md + tasks.md
   │
   ▼
 이슈 발견 시 (어떤 단계에서든)
-  │  issues.md에 기록
-  │  설계 변경 필요 → architecture.md/api-spec.md 수정 + Changelog 기록
-  │  tasks.md에 과업 추가 (ISS-NNN 참조)
-  │  /dev-* 수정 → qa-test-cases.md 보강 → issues.md 상태 업데이트
+  │  issues.md 등록 + tasks.md 과업 추가
+  │  설계 변경 필요 → 계약 문서 수정 + Changelog 기록
+  │  해결 완료 → issues.md 상태 변경 + tasks.md 체크
 ```
 
 > **피드백 루프**: 위 워크플로우는 순방향이지만, 개발·리뷰·QA 중 이슈가 발견되면
@@ -104,7 +109,8 @@ projects/
 | 문서 | 작성자 | 설명 |
 |------|--------|------|
 | `1pager.md` | 사용자 | 프로젝트 목표, 솔루션, 지표 |
-| `designs/` | 사용자 | 디자인 파일, 와이어프레임 |
+| `designs/` | 사용자 | 디자인 원본 자료 (Figma 링크, 스크린샷, 와이어프레임) |
+| `designs/designs.md` | 사용자 | Figma 링크, 화면 목록, 반영 현황 (/design 에이전트의 입력) |
 | `requirements.md` | /analyze 또는 사용자 | 요구사항 정의서 — 전체 기능 요구사항 |
 | `user-stories.md` | /analyze 또는 사용자 | 사용자 스토리 — UX 흐름, 예외 시나리오 |
 | `screen-plan.md` | /analyze 또는 사용자 | 화면 기획서 — 화면 구성, 분기 조건 |
@@ -114,6 +120,7 @@ projects/
 | `status.md` | 모든 에이전트 | 진행 상태, 브랜치/워크트리 현황 |
 | `tasks.md` | /analyze | 파트별 과업 목록 |
 | `issues.md` | 모든 에이전트 | 이슈 추적 (QA/리뷰/개발 중 발견된 버그, 예외, 개선사항) |
+| `design-spec.md` | /design | 디자인 스펙 (계약 문서 — 화면 스펙, 에셋, 파트별 가이드) |
 | `architecture.md` | /architect | 기술 아키텍처 (데이터 모델, 처리 로직) |
 | `api-spec.md` | /architect | 서버↔클라이언트 API 계약 |
 | `qa-test-cases.md` | /qa | QA 테스트 케이스 및 검수 결과 |

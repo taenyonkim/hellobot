@@ -128,6 +128,36 @@ hellobot.co (Nginx)
 - **대상 서비스**: HelloBot, StoryPlay, Between, ThingsFlow
 - **알림**: Slack API, Notion API
 
+## 리포지토리 개발 레퍼런스
+
+프로젝트 진행 시 반복적으로 참조되는 리포별 필수 정보.
+워크트리 생성, 의존성 설치, 로컬 실행 등에서 코드를 탐색하지 않고 이 테이블을 먼저 참조합니다.
+
+### 브랜치 및 빌드
+
+| 리포 | 메인 브랜치 | 패키지 매니저 | 의존성 설치 | 로컬 실행 | 로컬 포트 |
+|------|-----------|-------------|-----------|----------|----------|
+| hellobot-server | `master` | npm | `npm install` | `npm run dev` | 3000 |
+| hellobot-studio-server | `master` | Gradle | `./gradlew build` | `./gradlew bootRun` | 8080 |
+| hellobot-studio-web | `master` | yarn | `yarn install` | `yarn start` | 4300 |
+| hellobot-web | `main` | yarn | `yarn install` | `yarn dev` | 4500 |
+| hellobot-webview | `main` | yarn | `yarn install` | `yarn dev` | 4200 |
+| hellobot-report-webview | `main` | yarn | `yarn install` | `yarn dev` | 4400 |
+| hellobot_android | `master` | Gradle | `./gradlew sync` | Android Studio Run | — |
+| hellobot_iOS | `develop` | Bundler + Tuist | `bundle install && tuist fetch && tuist generate` | Xcode Run | — |
+| common-data-airflow | `develop` | pip | `pip install -r requirements.txt` | `airflow standalone` | 8080 |
+
+> **메인 브랜치**: 피쳐 브랜치 분기 및 워크트리 생성의 기준점. `git worktree add ... -b feat/xxx` 시 이 브랜치에서 생성합니다.
+
+### 빌드 변형 (모바일)
+
+| 리포 | 개발 | 스테이징 | 운영 |
+|------|------|---------|------|
+| hellobot_android | `assembleDevRelease` | `assembleStagingRelease` | `bundlePrdRelease` |
+| hellobot_iOS | Beta scheme | — | Release scheme |
+
+---
+
 ## 배포
 
 ### 배포 브랜치 및 파이프라인
