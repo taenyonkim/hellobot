@@ -13,6 +13,30 @@
 
 ---
 
+### ISS-008: Admin 쿠폰 사용 취소 시 상품 상태 정보가 확인 팝업에 표시되지 않음
+
+| 항목 | 내용 |
+|------|------|
+| 분류 | enhancement |
+| 발견일 | 2026-04-15 |
+| 해결일 | 2026-04-15 |
+| 심각도 | P2 |
+| 영향 파트 | 서버 (Admin) |
+
+**현상**: Admin에서 쿠폰 사용 취소 시 단순 확인 메시지만 표시. 운영자가 상품 상태를 인지할 수 없음.
+
+**원인**: `getAdminCancelInfo()` 서비스 메서드는 구현되어 있었으나 호출되지 않았음. AdminJS의 `guard`가 정적 locale 문자열만 지원하여 동적 데이터 표시 불가.
+
+**해결**:
+- 정적 `guard` 제거 → 커스텀 React 컴포넌트(`views/CoopMarketing/cancel.tsx`)로 대체
+- `build-router.ts`에 custom API 엔드포인트 추가 (`/admin/custom-api/coop-marketing/cancel-info/:usageSeq`)
+- 컴포넌트가 마운트 시 cancel-info API 호출 → `getAdminCancelInfo()` 결과를 표시
+- 경고(`[경고]` 포함) 시 빨간색 MessageBox, 정상 시 파란색 MessageBox
+- 쿠폰코드, 유저, 상품 유형 기본 정보도 함께 표시
+- 상태 조회 실패 시 에러 표시 및 취소 버튼 비활성화
+
+---
+
 ### ISS-007: 미로그인 시 쿠폰 입력 포커스에서 로그인 안내 팝업 대신 즉시 리다이렉트됨
 
 | 항목 | 내용 |

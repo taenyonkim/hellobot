@@ -22,7 +22,7 @@
 | 웹 | 개발완료 | /dev-web | [worktrees/hellobot-web/docs/features/.../status.md](./worktrees/hellobot-web/docs/features/20260324-coupc-marketing-kakao-gift/status.md) |
 | 스튜디오 | 해당없음 | - | - |
 | 데이터 | 해당없음 | - | - |
-| QA | 검수대기 | /qa | qa-test-cases.md 작성 완료 (74건), 검수 미수행 |
+| QA | 검수대기 | /qa | qa-test-cases.md 갱신 완료 (110건, ISS-001~007 반영), 검수 미수행 |
 
 > 각 파트의 구현 상세 및 작업 로그는 리포 레벨 status.md에 기록합니다.
 > 이 문서에는 프로젝트 전체 요약과 파트 간 조율 사항만 기록합니다.
@@ -49,6 +49,21 @@
 현재 없음.
 
 ## 작업 로그
+
+### 2026-04-15 — ISS-008 해결
+
+- 원인: `getAdminCancelInfo()` 구현 완료 상태였으나 미호출. AdminJS `guard`가 정적 문자열만 지원
+- 해결: 정적 guard → 커스텀 React 컴포넌트(`views/CoopMarketing/cancel.tsx`)로 대��
+- `build-router.ts`에 `/admin/custom-api/coop-marketing/cancel-info/:usageSeq` 엔드포인트 추가
+- 컴포넌트: 쿠폰 정보 + 상품 상태(하트 잔여/이용권 사용 여부) MessageBox 표시, 경고 시 빨간색
+- `locale.ts`: 미사용 `coopMarketingCancel` guard 메시지 제거
+
+### 2026-04-15 — /qa 테스트 케이스 갱신
+
+- ISS-001~007 해결 내역 반영하여 qa-test-cases.md 갱신 (95건 → 110건)
+- 기존 케이스 수정 7건: expiryDate 제거(TC-H02/A01/A02/D06), 만료일 표시 제거(TC-S03/S04/D10), UPSERT 반영(TC-A12)
+- 신규 추가 15건: 미로그인 팝업(TC-LG01~07), CM_010(TC-E06a/E17), 취소 후 재사용(TC-E16), Admin 수동 취소(TC-M10~14)
+- Skip 2건: TC-S04, TC-D10 (ISS-003으로 해당 없음)
 
 ### 2026-04-15 — ISS-007 웹 구현 완료
 

@@ -29,6 +29,7 @@
 - [x] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (8003→CM_002, 8005→CM_003, UseYN→CM_003)
 - [x] ISS-005: admin locale 띄어쓰기 통일 — cancel "사용취소" → "사용 취소"
 - [x] ISS-006: 결제취소 쿠폰(8099) → CM_010 "결제가 취소된 쿠폰입니다" 에러코드 추가
+- [x] ISS-008: Admin 쿠폰 사용 취소 팝업에 상품 상태 정보 표시 (커스텀 컴포넌트 + custom API)
 - [x] api-spec.md 작성 (클라이언트용 API 명세)
 - [x] client-guide.md 작성 (클라이언트 개발 가이드)
 
