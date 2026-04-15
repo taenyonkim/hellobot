@@ -36,15 +36,15 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/common-data-ai
   1. common-data-airflow/CLAUDE.md 또는 README.md → 프로젝트 구조, DAG 규칙
   2. 해당 프로젝트 문서:
      - projects/해당프로젝트/ → 요구사항, 설계
-     - 특히 design.md → 새 테이블/데이터 모델 파악
+     - 특히 architecture.md → 새 테이블/데이터 모델 파악
 
 선택적 읽기 (구현에 필요한 파일만):
   - 관련 서비스의 기존 DAG (예: hlb_dags/ 내 유사 DAG)
   - scripts/ 내 재사용 가능한 함수
-  - 소스 테이블 스키마 확인 (design.md 또는 서버 Entity 참조)
+  - 소스 테이블 스키마 확인 (architecture.md 또는 서버 Entity 참조)
 
 금지:
-  - 서버/클라이언트 소스 코드 탐색 (design.md의 테이블 설계로 대체)
+  - 서버/클라이언트 소스 코드 탐색 (architecture.md의 테이블 설계로 대체)
   - 전체 DAG 파일 스캔
   - 다른 서비스(stp_dags, btw_dags) DAG 불필요하게 읽기
 ```
@@ -56,7 +56,7 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/common-data-ai
 3. **워크트리 확인**: 워크트리 존재 여부 확인, 없으면 사용자에게 생성 확인
 4. **기존 DAG 참고**: 원본 리포에서 유사 기존 DAG 패턴 확인 (hlb_dags/ 내)
 5. **구현**: 워크트리에서 DAG, SQL 스크립트, BigQuery 테이블 정의 작성
-6. **상태 업데이트**: 프로젝트 status.md에 데이터 파트 진행 기록
+6. **상태 업데이트**: 과업 완료 시 tasks.md 체크, 파트 상태 변경 시 status.md 갱신, 설계 결정 시 리포 status.md 결정 로그 추가
 
 ## 데이터 처리 레이어
 

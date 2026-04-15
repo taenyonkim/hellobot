@@ -51,7 +51,7 @@
 | [status.md](./status.md) | 전체 진행 상태 및 워크트리/브랜치 현황 |
 | [tasks.md](./tasks.md) | 파트별 과업 목록 |
 | [issues.md](./issues.md) | 이슈 추적 |
-| [design.md](./design.md) | 기술 설계 (데이터 흐름, 데이터 모델, 파트별 구현 포인트) |
+| [architecture.md](./architecture.md) | 기술 설계 (데이터 흐름, 데이터 모델, 파트별 구현 포인트) |
 | [api-spec.md](./api-spec.md) | 클라이언트용 API 명세 |
 | [client-guide.md](./client-guide.md) | 클라이언트 개발 가이드 |
 | [qa-test-cases.md](./qa-test-cases.md) | QA 테스트 케이스 (74건) |
@@ -62,7 +62,7 @@
 
 | 문서 | 설명 |
 |------|------|
-| `backend-design.md` | 백엔드 설계 (Entity, Service, 테이블 상세) |
+| `backend-architecture.md` | 백엔드 설계 (Entity, Service, 테이블 상세) |
 | `backend-guide.md` | 백엔드 개발 가이드 (구현 순서, 코드 골격) |
 | `testing/` | 테스트 플랜 및 결과 |
 | `deployment/` | 배포 가이드 |

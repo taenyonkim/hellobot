@@ -4,7 +4,7 @@
 ## 작성일: 2026-04-13 (최종 갱신: 2026-04-15)
 ## 상태: 검수대기
 
-> **참조 문서**: [user-stories.md](./user-stories.md), [api-spec.md](./api-spec.md), [screen-plan.md](./screen-plan.md), [design.md](./design.md), [designs/design-review.md](./designs/design-review.md), [client-guide.md](./client-guide.md)
+> **참조 문서**: [user-stories.md](./user-stories.md), [api-spec.md](./api-spec.md), [screen-plan.md](./screen-plan.md), [architecture.md](./architecture.md), [designs/design-review.md](./designs/design-review.md), [client-guide.md](./client-guide.md)
 
 ---
 

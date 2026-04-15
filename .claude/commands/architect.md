@@ -46,7 +46,7 @@
 
 ```
 projects/YYYYMMDD-feature-name/
-├── design.md      # 기술 설계 (데이터 흐름, 데이터 모델, 처리 로직)
+├── architecture.md      # 기술 설계 (데이터 흐름, 데이터 모델, 처리 로직)
 ├── api-spec.md    # 파트 간 API 명세 (서버 ↔ 클라이언트 계약)
 └── status.md      # 상태 업데이트 ("설계완료")
 ```

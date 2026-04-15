@@ -51,12 +51,12 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/hellobot_iOS f
 
 ## 수행 절차
 
-1. **프로젝트 문서 확인**: api-spec.md로 서버 API 파악, design.md로 전체 설계 파악
+1. **프로젝트 문서 확인**: api-spec.md로 서버 API 파악, architecture.md로 전체 설계 파악
 2. **프로젝트 구조 확인**: CLAUDE.md/README.md로 모듈 구조, 코드 컨벤션 파악
 3. **워크트리 확인**: 워크트리 존재 여부 확인, 없으면 사용자에게 생성 확인
 4. **관련 코드 탐색**: 원본 리포에서 유사 기능의 기존 구현 패턴 확인 (Grep으로 타겟팅)
 5. **구현**: 워크트리에서 기존 아키텍처 패턴(ReactorKit, 모듈 구조)을 따라 구현
-6. **상태 업데이트**: 프로젝트 status.md에 iOS 파트 진행 기록
+6. **상태 업데이트**: 과업 완료 시 tasks.md 체크, 파트 상태 변경 시 status.md 갱신, 설계 결정 시 리포 status.md 결정 로그 추가
 
 ## 주의사항
 

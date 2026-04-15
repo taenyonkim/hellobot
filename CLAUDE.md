@@ -66,7 +66,7 @@ hellobot/                              ← 워크스페이스 루트
 │       ├── readme.md                  ← 요구사항, 배경, 목표
 │       ├── status.md                  ← 진행 상태, 브랜치/워크트리 현황
 │       ├── tasks.md                   ← 파트별 과업
-│       ├── design.md                  ← 기술 설계
+│       ├── architecture.md             ← 기술 아키텍처
 │       ├── api-spec.md                ← API 명세
 │       ├── qa-test-cases.md           ← QA 테스트 케이스
 │       ├── planning/                  ← 기획 과업 산출물 (필요시 생성)
@@ -187,12 +187,34 @@ hellobot/                              ← 워크스페이스 루트
 
 에이전트들은 **프로젝트 문서**를 통해 소통합니다:
 
-1. `/analyze` → `projects/YYYYMMDD-feature-name/readme.md`, `tasks.md` 작성
-2. `/architect` → `design.md`, `api-spec.md` 작성
-3. `/dev-*` → 워크트리에서 구현 후 `status.md` 업데이트
-4. `/review` → 변경사항 + 프로젝트 문서 대조 검증
-5. `/qa` → `qa-test-cases.md` 작성, 검수 결과 관리
-6. `/workspace` → 문서 정합성 점검, 오래된 문서 최신화
+1. `/analyze` → `readme.md`, `tasks.md` 작성
+2. `/architect` → `architecture.md`, `api-spec.md` 작성
+3. `/dev-*` → 워크트리에서 구현 후 tasks.md 체크, 이슈 발견/해결 시 issues.md 갱신
+4. `/review` → 변경사항 + 프로젝트 문서 대조 검증, 이슈 발견 시 issues.md + tasks.md
+5. `/qa` → `qa-test-cases.md` 작성, 이슈 발견 시 issues.md + tasks.md
+6. `/workspace` → status.md 파트 상태 동기화
+
+### 문서 업데이트 규칙 (모든 에이전트 필수)
+
+#### 과업 완료 시 업데이트할 문서
+
+| 상황 | 업데이트 대상 | 내용 |
+|------|------------|------|
+| 과업 완료 | tasks.md | 해당 과업 [x] 체크 |
+| 이슈 발견 | issues.md + tasks.md | 이슈 등록 (상태: 미해결) + 과업 추가 |
+| 이슈 해결 | issues.md + tasks.md | 상태 "해결 (날짜)" + 과업 [x] 체크 |
+| 파트 상태 변경 | status.md | 파트별 현황 표의 상태/비고 변경 |
+| 설계 결정 (파트 내) | 리포 status.md | 결정 로그에 1줄 추가 (결정 + 이유) |
+| 설계 결정 (전체 영향) | architecture.md 또는 api-spec.md | 해당 섹션 수정 + Changelog 기록 |
+
+#### 하지 않아야 할 것
+
+- **status.md에 작업 로그를 쓰지 않음** — status.md는 경량 대시보드 (~30줄). 구현 내역은 git log로 추적
+- **리포 status.md에 과업 체크박스를 쓰지 않음** — tasks.md가 과업의 단일 소스
+- **리포 status.md에 구현 내역을 쓰지 않음** — "무엇을 수정했나"는 git log, "왜 그렇게 결정했나"만 결정 로그에 기록
+- **issues.md에 해결 방안 상세를 쓰지 않음** — issues.md는 레지스트리 (현상+원인+상태만). 해결 내역은 tasks.md 과업 + 커밋
+- **issues.md에서 이슈를 섹션 간 이동하지 않음** — 상태 필드만 변경 ("미해결" → "해결 (날짜)")
+- **architecture.md/api-spec.md 수정 시 Changelog 누락하지 않음** — 계약 문서는 Changelog 필수 (날짜 + 변경자 + 내용 + 확인 컬럼)
 
 ### 이슈 관리 (모든 에이전트 공통)
 
@@ -210,30 +232,24 @@ QA, 리뷰, 개발 등 **어떤 단계에서든** 설계 시 고려하지 못한
 
 ```
 1. 이슈 등록 (발견 즉시)
-   - issues.md의 "미해결 이슈" 섹션에 기록
-   - 분류, 현상, 원인, 영향 파트, 심각도 작성
+   - issues.md에 등록 (분류, 현상, 원인, 심각도, 상태: 미해결)
    - ISS-NNN 번호 부여 (기존 issues.md의 마지막 번호 + 1)
-   - tasks.md에 ISS-NNN 참조 과업 추가 (해결 방안 논의 필요 표기)
-   - status.md 작업 로그에 이슈 등록 기록
+   - tasks.md에 ISS-NNN 참조 과업 추가
    ※ 이 단계에서 해결 방안을 확정하지 않음 — 등록만
 
 2. 해결 방안 논의 (사용자와 협의)
    - 이슈의 영향 범위와 해결 방향 논의
-   - 필요시 관련 파트 검토 (취소 로직, 트랜잭션 범위 등)
 
-3. 설계 반영 (방안 확정 후)
-   - design.md / api-spec.md 수정 + 하단 Changelog에 기록
-   - 관련 기획 문서 업데이트 (필요시)
+3. 설계 반영 (방안 확정 후, 필요시)
+   - architecture.md / api-spec.md 수정 + 하단 Changelog에 기록
    - tasks.md의 과업을 구체적 구현 과업으로 갱신
 
 4. 구현 및 검증
    - 해당 파트 에이전트가 구현
-   - qa-test-cases.md에 해당 이슈를 커버하는 케이스 추가/수정
 
 5. 완료 처리
-   - issues.md에서 해당 이슈를 "해결된 이슈" 섹션으로 이동
-   - 해결 방안, 관련 문서 변경 내역 기재
-   - status.md 작업 로그에 완료 기록
+   - issues.md: 상태 필드를 "해결 (날짜)"로 변경
+   - tasks.md: 해당 과업 [x] 체크
 ```
 
 #### 에이전트별 이슈 처리 범위
@@ -296,7 +312,7 @@ QA, 리뷰, 개발 등 **어떤 단계에서든** 설계 시 고려하지 못한
 ### 크로스 리포 참조가 필요할 때
 
 다른 파트의 정보가 필요하면:
-1. 먼저 프로젝트 문서의 `design.md`, `api-spec.md`를 확인
+1. 먼저 프로젝트 문서의 `architecture.md`, `api-spec.md`를 확인
 2. 문서에 없으면 해당 리포의 CLAUDE.md만 확인
 3. 그래도 부족하면 해당 리포에서 특정 파일만 타겟팅 검색
 

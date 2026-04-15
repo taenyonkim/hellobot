@@ -75,90 +75,15 @@
 
 ## 3. API 계약
 
-상세 스펙: [api-spec.md](./api-spec.md)
+엔드포인트 2개, 에러코드 10개. 상세 스펙: **[api-spec.md](./api-spec.md)**
 
 | Method | Path | 설명 | 인증 |
 |--------|------|------|------|
 | POST | `/api/coop/check` | 쿠폰 유효성 확인 + 상품 정보 조회 | @Authorized (JWT) |
 | POST | `/api/coop/use` | 쿠폰 사용 (하트 충전 또는 이용권 발급) | @Authorized (JWT) |
 
-### check 응답 구조
-
-```typescript
-// valid: true — 하트 충전권
-{
-  valid: true,
-  productType: "heart",
-  productName: string,      // "카카오 하트 충전권 5천원"
-  heartQuantity: number,    // 25
-  couponName: string,       // "카카오 선물하기 하트 충전권"
-}
-
-// valid: true — 스킬 교환권
-{
-  valid: true,
-  productType: "skill",
-  productName: string,      // "그 사람과 나의 사주 궁합"
-  fixedMenuSeq: number,     // 2166
-  chatbotSeq: number,       // 123
-  skillName: string,        // "그 사람과 나의 사주 궁합"
-  couponName: string,       // "카카오 선물하기 스킬 교환권"
-}
-
-// valid: false — 에러
-{
-  valid: false,
-  errorCode: string,        // "CM_001"
-  errorMessage: string      // "유효하지 않은 쿠폰입니다" (로케일별 번역)
-}
-```
-
-### use 응답 구조
-
-```typescript
-// 성공 — 하트 충전
-{
-  success: true,
-  productType: "heart",
-  heartQuantity: number,    // 25
-  productName: string       // "카카오 하트 충전권 5천원"
-}
-
-// 성공 — 스킬 이용권 발급
-{
-  success: true,
-  productType: "skill",
-  issuedCouponSeq: number,  // 456 — 발급된 100% 할인 쿠폰 seq
-  fixedMenuSeq: number,     // 2166
-  chatbotSeq: number,       // 123
-  skillName: string,        // "그 사람과 나의 사주 궁합"
-  productName: string,      // "그 사람과 나의 사주 궁합"
-  message: string           // "스킬 이용권이 등록되었어요"
-}
-
-// 실패 — HTTP 4xx/5xx
-{
-  code: string,             // "CM_007"
-  message: string,          // "하트 충전에 실패했습니다"
-  reason: string
-}
-```
-
-### 에러 코드
-
-| 코드 | HTTP | 설명 | 사용자 메시지 |
-|------|------|------|-------------|
-| CM_001 | 200(check) / 400(use) | 유효하지 않은 쿠폰 | 유효하지 않은 쿠폰입니다 |
-| CM_002 | 200 / 400 | 기간 만료 | 기간이 만료된 쿠폰입니다 |
-| CM_003 | 200 / 400 | 이미 사용됨 | 이미 사용된 쿠폰입니다 |
-| CM_004 | 200 / 404 | 상품 매핑 없음 | 상품을 찾을 수 없습니다 |
-| CM_005 | — / 400 | 쿠프마케팅 API 오류 | 쿠프마케팅 API 오류가 발생했습니다 |
-| CM_006 | 200 / 500 | 통신 오류 | 일시적인 통신 오류가 발생했습니다 |
-| CM_007 | — / 500 | 하트 충전 실패 | 하트 충전에 실패했습니다 |
-| CM_008 | — / 500 | 이용권 발급 실패 | 스킬 이용권 발급에 실패했습니다 |
-| CM_009 | — / 500 | 쿠폰 스펙 없음 | 쿠폰 스펙을 찾을 수 없습니다 |
-
-> check API는 에러도 HTTP 200으로 반환 (`valid: false`), use API는 실패 시 HTTP 4xx/5xx
+> 응답 구조, 에러 코드 상세는 [api-spec.md](./api-spec.md)를 참조.
+> check API는 에러도 HTTP 200으로 반환 (`valid: false`), use API는 실패 시 HTTP 4xx/5xx.
 
 ---
 

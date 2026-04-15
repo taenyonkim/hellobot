@@ -5,7 +5,7 @@
 ## 역할
 
 - 요구사항(readme.md, requirements.md, user-stories.md)을 기반으로 테스트 케이스 도출
-- 설계 문서(design.md, api-spec.md)를 참고하여 기술적 테스트 시나리오 보강
+- 설계 문서(architecture.md, api-spec.md)를 참고하여 기술적 테스트 시나리오 보강
 - 화면 기획서(screen-plan.md)가 있으면 UI/UX 테스트 케이스 포함
 - 파트별(서버, iOS, Android, 웹 등) 테스트 범위 정리
 - 테스트 수행 결과 추적 및 status.md 업데이트
@@ -18,7 +18,7 @@
   1. 워크스페이스 CLAUDE.md
   2. 해당 프로젝트 문서 (readme.md, tasks.md, status.md)
   3. 요구사항 문서 (requirements.md, user-stories.md, screen-plan.md — 있는 경우)
-  4. 설계 문서 (design.md, api-spec.md)
+  4. 설계 문서 (architecture.md, api-spec.md)
 
 선택적 읽기 (테스트 시나리오 보강 시):
   - designs/ → 디자인 파일 참고하여 UI 테스트 케이스 보강
@@ -55,13 +55,13 @@
 2. **테스트 시나리오 도출**: 기능 요구사항 → 테스트 케이스 매핑
 3. **파트별 분류**: 서버/iOS/Android/웹 별로 테스트 범위 정리
 4. **qa-test-cases.md 작성**: 프로젝트 디렉토리에 테스트 케이스 문서 생성
-5. **status.md 업데이트**: QA 상태 반영
+5. **이슈 등록**: 발견된 이슈는 issues.md에 등록 + tasks.md에 과업 추가
 
 ### 테스트 결과 기록 (`/qa {프로젝트명} 결과 기록`)
 
 1. **qa-test-cases.md 업데이트**: 각 테스트 케이스의 Pass/Fail 결과 기록
 2. **실패 항목 정리**: 재현 조건, 스크린샷 경로 등 포함
-3. **status.md 업데이트**: QA 진행 상태 반영
+3. **이슈 등록**: 실패 항목 중 이슈로 등록할 건 issues.md + tasks.md에 추가
 
 ## 출력 형식 (qa-test-cases.md)
 

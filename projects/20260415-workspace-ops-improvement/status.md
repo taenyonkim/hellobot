@@ -1,14 +1,15 @@
 # 개발 상태
 
-## 현재 상태: 분석중
+## 현재 상태: 완료
 
 ## 파트별 현황
 
 | 파트 | 상태 | 비고 |
 |------|------|------|
-| 분석/설계 | 분석중 | 문서 중복 분석 완료, 운영 방법 구체화 필요 |
-| 적용 (coop-integration) | 대기 | 설계 확정 후 기존 프로젝트에 적용하여 검증 |
-| 가이드 갱신 | 대기 | projects/readme.md, CLAUDE.md, commands/*.md |
+| 분석/설계 | 완료 | architecture.md 작성 완료 |
+| 적용 (coop-integration) | 완료 | status/issues/서버status/웹status/architecture §3 경량화 완료 |
+| 명칭 변경 | 완료 | design.md → architecture.md (CLAUDE.md, commands, how-to-work, projects/readme, coop-integration) |
+| 가이드 갱신 | 완료 | projects/readme.md, CLAUDE.md, commands/*.md, how-to-work.md |
 
 ## 블로커
 
@@ -25,3 +26,4 @@
 | 리포 status.md 로그 | 개발 로그 → 결정 로그로 전환 (의사결정만 기록, 구현 내역은 git log) |
 | architecture.md API 섹션 | api-spec.md 참조로 대체 (에러코드/응답 상세 중복 제거) |
 | 기술 설계 문서 명칭 | design.md → architecture.md (GUI/UI 디자인과 혼동 방지) |
+| 계약 문서 Changelog | architecture.md, api-spec.md에 Changelog 필수 (확인 컬럼 포함) |

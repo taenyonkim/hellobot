@@ -23,7 +23,7 @@
 - [ ] Admin 정산 통계 custom page
 - [x] ISS-001: useCoupon 처리 순서 변경 — usage UPSERT 우선 + chargeHeart/issueCoupon 후속
 - [x] ISS-001: Admin 수동 취소 시 상품 회수 (하트 차감 + 회수 로그, 이용권 삭제)
-- [x] ISS-001: design.md §5-2, §5-3, §5-4, §5-5 변경 반영
+- [x] ISS-001: architecture.md §5-2, §5-3, §5-4, §5-5 변경 반영
 - [x] 명칭 변경: coupc-marketing → coop-marketing (파일명, 클래스명, 설정키 등. DB 테이블명은 유지)
 - [x] ISS-003: check API 응답에서 expiryDate 필드 제거 (DTO + Service)
 - [x] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (8003→CM_002, 8005→CM_003, UseYN→CM_003)
