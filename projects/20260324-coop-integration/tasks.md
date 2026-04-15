@@ -1,5 +1,9 @@
 # 과업 목록
 
+## 디자인 (/design)
+- [x] design-spec.md 작성 (기존 designs/ 스펙 + Figma 추출 통합)
+- [x] designs/designs.md 경량화 (입력 문서로 정리)
+
 ## 기획 (planning/)
 
 ### 카카오 선물하기 상품 정의 (planning/kakao_coupon_product/)
