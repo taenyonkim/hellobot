@@ -55,13 +55,14 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/hellobot-web f
 
 ## 수행 절차
 
-1. **프로젝트 문서 확인**: 요구사항, 설계, API 스펙 파악
+1. **프로젝트 문서 확인**: 요구사항, 설계, API 스펙, 디자인 스펙 파악
 2. **대상 리포 결정**: 신규 → hellobot-web, 레거시 → hellobot-webview, 리포트 → hellobot-report-webview
 3. **프로젝트 구조 확인**: 해당 리포의 CLAUDE.md/README.md로 컨벤션 파악
 4. **워크트리 확인**: 워크트리 존재 여부 확인, 없으면 사용자에게 생성 확인
-5. **관련 코드 탐색**: 원본 리포에서 유사 페이지/컴포넌트 패턴 확인 (Grep으로 타겟팅)
-6. **구현**: 워크트리에서 기존 패턴을 따라 구현
-7. **상태 업데이트**: 과업 완료 시 tasks.md 체크, 파트 상태 변경 시 status.md 갱신, 설계 결정 시 리포 status.md 결정 로그 추가
+5. **개발 계획 수립**: 워크트리의 `docs/features/YYYYMMDD-feature-name/status.md` 작성 — 요구사항을 세부 과업으로 분해하고 개발 순서 계획 (가이드: `docs/features/readme.md`)
+6. **관련 코드 탐색**: 원본 리포에서 유사 페이지/컴포넌트 패턴 확인 (Grep으로 타겟팅)
+7. **구현**: 워크트리에서 기존 패턴을 따라 구현, 과업 완료 시 리포 status.md 체크
+8. **상태 업데이트**: 프로젝트 tasks.md 체크, 파트 상태 변경 시 프로젝트 status.md 갱신
 
 ## 주의사항
 
