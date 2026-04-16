@@ -79,7 +79,7 @@ Figma 도구 사용:
 6. **파트별 가이드**: 웹(Tailwind)/iOS(UIKit)/Android(Compose) 대응 포인트
 7. **디자인 리뷰 체크리스트**: 각 화면별 확인 항목
 8. **design-spec.md 작성**: 프로젝트 디렉토리에 생성
-9. **tasks.md 업데이트**: 디자인 파트 과업 체크
+9. **상태 업데이트**: 과업 완료 시 tasks.md 체크, 파트 상태 변경 시 프로젝트 status.md 갱신
 
 ## 출력물 (design-spec.md) 구조
 

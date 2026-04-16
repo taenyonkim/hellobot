@@ -7,6 +7,7 @@
 | 파트 | 상태 | 브랜치 | 워크트리 | 비고 |
 |------|------|--------|---------|------|
 | 기획 | 진행중 | - | - | 스킬 이용권 라인업 선정, 최종 상품 구성 확정 잔여 |
+| 디자인 | 완료 | - | - | design-spec.md 작성 완료 |
 | 서버 | 개발완료 | feat/coupnc-integration | worktrees/hellobot-server/ | 정산 통계 제외 |
 | iOS | 대기 | - | - | api-spec.md, client-guide.md 준비 완료 |
 | Android | 개발중 | feat/coop-integration | worktrees/hellobot_android/ | api-spec.md, client-guide.md 준비 완료 |
