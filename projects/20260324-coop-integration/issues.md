@@ -7,6 +7,173 @@
 
 ---
 
+### ISS-018: iOS S3 하트 완료 팝업 이미지 미노출 + 확인 버튼 프로필 탭 이동 미작동
+
+| 분류 | bug |
+| 발견일 | 2026-04-19 |
+| 심각도 | P2 |
+| 영향 파트 | iOS |
+| 상태 | 해결 (2026-04-19) |
+
+**현상**:
+1. 하트 충전 완료 팝업(S3)의 상단 캐릭터+하트 일러스트가 표시되지 않음.
+2. "확인" 버튼 탭 시 팝업은 닫히지만 프로필 탭으로 이동하지 않음.
+
+**원인 (분석 가설)**:
+1. `Hellobot/Resources/Assets.xcassets/_Coop/Contents.json`에 `provides-namespace: true`로 설정되어 있어 실제 에셋 이름이 `_Coop/img_heart_complete`. 코드(`CoopHeartCompletePopupView.swift:30`)는 `UIImage(named: "img_heart_complete")`로 네임스페이스 없이 호출 → nil 반환.
+2. `CoopHeartCompletePopupViewController.swift:52-56`의 `self?.dismiss(animated: true) { self?.onConfirm?() }` 패턴에서 completion 클로저 내부 `self?`가 dismiss 직후 weak 해제 타이밍으로 nil이 되어 `onConfirm` 미호출 가능. 또는 호출되더라도 dismiss 완료 후의 탭 전환 타이밍 이슈. 일반 패턴(RecoverViewController 등)은 `selectTab → dismiss` 순서로 호출.
+
+**범위**: iOS 단독. S3 팝업은 register API 응답 `issuedType=heart` 분기에서 호출.
+
+---
+
+### ISS-017: 웹 일반 쿠폰 등록 완료 후 리스트에 즉시 반영되지 않음 (새로고침해야 보임)
+
+| 분류 | bug |
+| 발견일 | 2026-04-19 |
+| 심각도 | P2 |
+| 영향 파트 | 웹 |
+| 상태 | 해결 (2026-04-19) |
+
+**현상**: 헬로우봇 쿠폰 코드를 입력해 등록 성공(`issuedType: "coupon"`) 후에도 쿠폰 리스트 화면에 신규 쿠폰이 즉시 나타나지 않음. 페이지를 수동으로 새로고침해야 목록에 보임.
+**재현**: `/coupon` 진입 → 일반 쿠폰 코드 입력 → "등록" 탭 → 성공 처리됨 → 목록 미갱신 → 새로고침 시 반영.
+**원인 (추정)**: `couponCodeRegister.tsx`의 `issuedType === 'coupon'` 분기에서 `dispatch(setCoupons([...(coupons ?? []), data.coupon]))`로 Redux 스토어를 갱신하지만, `/coupon` 페이지가 `useGetCoupon` SWR 캐시 기반으로 렌더링되거나 페이지의 `useEffect([couponData])`가 재실행되며 SWR의 기존 응답으로 덮어쓰는 것으로 보임. SWR `mutate`를 호출해 `/api/coupon` 캐시를 invalidate하지 않음.
+**영향**: Phase 1 전환 전후 공통 버그로 추정되며 `skill` 이용권 플로우(카드 추가 로컬 상태)에는 해당 없음. 일반 쿠폰 사용자 경험 저하.
+**해결 방향 후보**: (1) `usePostCouponRegister` 성공 시 `mutate('/api/coupon')`로 SWR 재조회, (2) 페이지의 `couponData` 기반 `setCoupons`를 일회성(초기 마운트) 로직으로 변경.
+
+---
+
+### ISS-016: 에러 토스트 지속시간 불일치 (Web 3초, Android LENGTH_LONG) — 계약 2.5초
+
+| 분류 | bug |
+| 발견일 | 2026-04-18 |
+| 심각도 | P3 |
+| 영향 파트 | 웹, Android |
+| 상태 | 미해결 |
+
+**현상**: design-spec.md §에러 토스트, client-guide.md S5, screen-plan.md S5는 자동 사라짐 시간을 "2.5초"로 규정. 실제 구현은 Web `components/toast.tsx:5` `DURATION_TIME = 3000` (3초), Android `CouponListActivity.kt:148,164`는 `Toast.LENGTH_LONG`(약 3.5초) 사용.
+**원인**: Web은 공통 Toast 컴포넌트의 기본값 3초를 그대로 사용. Android는 기본 Toast API의 고정 상수를 사용하여 2.5초 표기 불가.
+**영향**: 사용자 노출 시간이 스펙 대비 0.5~1초 길어짐. 기능 동작에는 영향 없으나 디자인 스펙 불준수.
+
+---
+
+### ISS-015: 서버 Redlock 미구현 — architecture §5-2/5-3 설계와 불일치
+
+| 분류 | edge-case |
+| 발견일 | 2026-04-18 |
+| 심각도 | P2 |
+| 영향 파트 | 서버 |
+| 상태 | 미해결 |
+
+**현상**: architecture.md §5-2(하트 충전권 use 처리) 및 §5-3(스킬 교환권 use 처리)에 "Redlock 획득 (coupon_code 기준, 중복 사용 방지)"이 2번째 단계로 명시되어 있으나, 실제 `CoopMarketingService` 구현 코드에 Redlock import/호출이 존재하지 않음.
+**원인**: 구현 과정에서 usage 테이블의 `(user_seq, coupon_code)` UNIQUE 제약 + UPSERT만으로 중복 사용을 방어하는 방식으로 단순화됨. 설계 문서는 갱신되지 않음.
+**영향**: 동일 유저가 동일 쿠폰으로 동시에 2회 이상 use를 호출할 경우 쿠프마케팅 L0/L1 API가 중복 호출될 수 있음(최종 UPSERT 단계에서만 차단). 설계 문서와 구현 간 진실 기준이 다름.
+
+---
+
+### ISS-014: screen-plan.md S3 완료 팝업 디자인이 design-spec 확정본과 상이
+
+| 분류 | bug |
+| 발견일 | 2026-04-18 |
+| 심각도 | P2 |
+| 영향 파트 | 기획 (문서) |
+| 상태 | 해결 (2026-04-19) |
+
+**현상**: design-spec.md §S3(확정본)은 캐릭터+하트 일러스트(`img_heart_complete.png`) + 캡션(Red400) + 제목 "하트가 {N}개 충전되었어요!" + 본문 "하트는 \<프로필\>탭에서 확인 가능해요" + "확인" 단일 버튼 구성. 반면 screen-plan.md:165-175는 구 초안 기준으로 "✓ 초록 원형 아이콘 + 메시지 '하트 {N}개가 충전되었어요'"로 기술되어 있음.
+**원인**: Figma 확정 디자인 반영 시 design-spec.md만 갱신되고 screen-plan.md는 초기 와이어프레임 기준이 잔존.
+**영향**: 문서만 혼선. 실제 구현(iOS/Android/Web)은 design-spec 기준으로 올바르게 구현됨.
+
+---
+
+### ISS-013: CM_005 사용자 메시지 문구 api-spec vs client-guide 불일치
+
+| 분류 | bug |
+| 발견일 | 2026-04-18 |
+| 심각도 | P3 |
+| 영향 파트 | 서버 (문서) |
+| 상태 | 해결 (2026-04-19) |
+
+**현상**: 동일 에러코드 CM_005(외부 서비스 오류)에 대해 계약 문서 2종의 사용자 안내 메시지가 다름.
+- api-spec.md:198 — "일시적인 서비스 오류가 발생했습니다"
+- client-guide.md:244 — "쿠프마케팅 API 오류가 발생했습니다"
+**원인**: api-spec, client-guide 작성 시점 차이로 인한 표기 일관성 누락.
+**영향**: 클라이언트가 어느 문서를 기준으로 표시할지 모호함. 사용자에게 "쿠프마케팅"이라는 내부 제휴사 명칭이 노출될 위험.
+
+---
+
+### ISS-012: CM_010 에러코드가 api-spec/client-guide에 누락 — 계약 문서 미갱신
+
+| 분류 | bug |
+| 발견일 | 2026-04-18 |
+| 심각도 | P2 |
+| 영향 파트 | 서버 (문서) |
+| 상태 | 미해결 |
+
+**현상**: ISS-006 해결 시 결제 취소 쿠폰(쿠프마케팅 응답 8099) 대응을 위해 CM_010 "결제가 취소된 쿠폰입니다" 에러코드가 추가되어 서버 코드(`src/common/code.ts CM_PAYMENT_CANCELED_COUPON`, `service.ts:191-192 8099→CM_010`)에 반영되고 tasks.md/issues.md에도 기록됨. 그러나 api-spec.md:192-202 에러코드 테이블에는 CM_001~CM_009만 존재하며, client-guide.md:219-249 check/use 에러 매핑표에도 CM_010이 누락됨.
+**원인**: ISS-006 처리 시 계약 문서(api-spec/client-guide) 동반 업데이트 누락. architecture.md Changelog에만 다른 변경이 기록됨.
+**영향**: 구현은 정상 동작하나 클라이언트 개발자가 계약 문서만 보면 CM_010 수신 시 매핑 불가. screen-plan.md §S5에 "결제가 취소된 쿠폰이에요" 메시지가 있어 문서 간 단서는 있음.
+
+---
+
+### ISS-011: 쿠폰 프리픽스 판별 주체 계약 문서 간 불일치 (architecture vs client-guide/screen-plan)
+
+| 분류 | bug |
+| 발견일 | 2026-04-18 |
+| 심각도 | P2 |
+| 영향 파트 | 문서 (architecture, client-guide, screen-plan), 서버, iOS, Android, Web |
+| 상태 | 해결 (2026-04-19) |
+
+**현상**: 쿠폰번호 프리픽스(90/91) 판별 주체에 대해 계약 문서 3건이 서로 상반된 내용을 기술.
+- architecture.md:254-256 — "쿠폰번호 프리픽스 90, 91로 시작하면 → POST /api/coop/check 호출, 그 외 → 기존 쿠폰 등록 API 호출" (클라이언트 분기)
+- client-guide.md:129, 265 — "등록 버튼 탭 시 서버가 쿠폰 형식을 판별 (클라이언트에서 분기 불필요)"
+- screen-plan.md:87, 129 — "서버가 쿠폰 코드 형식을 판별"
+
+실제 구현은 architecture 기준으로 iOS(`CouponListViewController.swift:156-161`)/Android(`CouponListViewModel.kt:121-123`) 양쪽에서 프리픽스 분기 로직이 구현되어 있음.
+**원인**: API 설계는 `/api/coop/*`와 기존 쿠폰 API를 분리했으므로 클라이언트가 엔드포인트를 선택해야 함. client-guide/screen-plan 작성 시 서버가 통합 판별하는 것으로 잘못 기술됨.
+**영향**: 클라이언트 개발자가 어느 문서를 기준으로 삼느냐에 따라 구현 방향이 엇갈림. ISS-009(구버전 앱 대응)와도 연관되어 해결 방안 논의 시 기준 문서 필요.
+**해결 방안** (2026-04-19): 근본 해결을 위해 **서버 단일 진입점**으로 전환 결정. 클라이언트 하드코딩된 프리픽스 분기 제거.
+- 신규 단일 엔드포인트 `POST /api/coupon/register` 도입 — 서버가 `coupon_prefix_rule` 테이블 기반으로 분류. 응답은 폴리모픽 (`resultType: "ISSUED"`, `issuedType: "coupon"|"heart"|"skill"`).
+- 쿠프마케팅 check+use를 단일 API에서 원샷 처리 (1단계 플로우). S2 확인 팝업 제거.
+- 기존 `/api/coop/check`, `/api/coop/use`는 Phase 1 deprecated → Phase 2 제거.
+- 향후 프리픽스/제휴사 추가 시 DB row 추가만으로 대응 (앱 강제 업데이트 불필요).
+- 전 문서 일괄 정합성 수정.
+
+---
+
+### ISS-010: 쿠폰 리스트 API(/api/coupon) 응답에 fixedMenuSeq 필드 부재 — 스킬 이용권 카드 탭 → 스킬 상세 이동 불가
+
+| 분류 | edge-case |
+| 발견일 | 2026-04-18 |
+| 심각도 | P2 |
+| 영향 파트 | 서버, iOS, Android |
+| 상태 | 해결 (2026-04-18) |
+
+**현상**: client-guide.md:179에 "스킬 이용권 카드 탭 또는 '스킬 보러가기 >' 링크 탭 → 스킬 상세 페이지 이동 (`fixedMenuSeq` 사용)"로 정의되어 있으나, 기존 `/api/coupon` 응답(`CouponDto`)에 `fixedMenuSeq` 필드가 포함되지 않아 클라이언트가 스킬 상세로 이동할 식별자를 확보할 수 없음.
+**원인**: 서버 DB에는 `CouponCondition.skillSeqs[0]`으로 정보가 존재하나, `CouponDto`가 이를 노출하지 않음. Coop 스킬 이용권은 `skillSeqs`에 단일 fixedMenuSeq를 담아 발급됨.
+**영향**: iOS S4 스킬 이용권 카드 탭 플로우 구현 불가. Android 동일 이슈 예상(동일 API 사용).
+
+---
+
+### ISS-009: 구버전 앱에서 카카오 쿠폰(90/91 프리픽스) 입력 시 "유효하지 않은 쿠폰입니다" 에러 표시
+
+| 분류 | edge-case |
+| 발견일 | 2026-04-16 |
+| 심각도 | P2 |
+| 영향 파트 | 서버, iOS, Android |
+| 상태 | 해결 (2026-04-19) |
+
+**현상**: 구버전 앱에서 사용자가 카카오 선물하기 쿠폰번호(90/91 프리픽스)를 입력하면 coop 연동 코드가 없으므로 기존 쿠폰 검증 로직에서 "유효하지 않은 쿠폰입니다" 에러가 표시됨.
+**원인**: 구버전 앱은 coop 연동 API(`/api/coop/check`)를 호출하지 않고 기존 쿠폰 API를 사용하기 때문에 90/91 프리픽스 쿠폰을 인식하지 못함.
+**제약**: 강제 업데이트 없이 해결해야 함. 서버 사이드 대응 방안 검토 필요.
+**해결 방안** (2026-04-19): 기존 `POST /api/coupon`의 **code 기반 경로**에 **프리픽스 가드** 추가. `code`가 비어있지 않은 문자열이고 `coupon_prefix_rule`의 `requiresNewFlow=true` rule과 매칭 시 HTTP 406 + `CO_APP_UPDATE_REQUIRED` 에러코드 반환.
+- 에러 메시지 (ko): `"앱 업데이트가 필요한 쿠폰이에요."`
+- 구버전 앱은 기존 에러 토스트 로직이 `message`를 그대로 표시 → 재빌드/강제 업데이트 불필요.
+- 신버전 앱은 **code 기반 등록 경로만** `/api/coupon/register`로 이전되어 가드에 닿지 않음. `couponSpecSeq` 경로(배너 "쿠폰 받기" 등 DOWNLOAD 클레임)는 신/구 모두 계속 `POST /api/coupon` 사용하며 가드 영향 없음.
+- 향후 새로운 제휴사 프리픽스 추가 시에도 DB row 추가만으로 구버전 앱에 동일 안내 자동 노출.
+- ISS-011과 동일 해결 방안 하에 통합 처리.
+
+---
+
 ### ISS-008: Admin 쿠폰 사용 취소 시 상품 상태 정보가 확인 팝업에 표시되지 않음
 
 | 분류 | enhancement |

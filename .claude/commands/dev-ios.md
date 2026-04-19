@@ -35,8 +35,9 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/hellobot_iOS f
 필수 읽기:
   1. hellobot_iOS/CLAUDE.md 또는 README.md → 프로젝트 구조, 개발 규칙
   2. 해당 프로젝트 문서:
-     - projects/해당프로젝트/ → 요구사항, 설계
-     - 특히 api-spec.md → 서버 API 명세 (호출할 엔드포인트)
+     - api-spec.md → 서버 API 명세 (호출할 엔드포인트)
+     - client-guide.md → UI 플로우, 화면별 동작 상세 (있는 경우)
+     - design-spec.md → 디자인 토큰, 화면별 스펙, 에셋 (있는 경우)
 
 선택적 읽기 (구현에 필요한 파일만):
   - 관련 화면/기능의 기존 코드 (Grep으로 검색)
@@ -55,6 +56,7 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/hellobot_iOS f
 2. **프로젝트 구조 확인**: CLAUDE.md/README.md로 모듈 구조, 코드 컨벤션 파악
 3. **워크트리 확인**: 워크트리 존재 여부 확인, 없으면 사용자에게 생성 확인
 4. **개발 계획 수립**: 워크트리의 `docs/features/YYYYMMDD-feature-name/status.md` 작성 — 요구사항을 세부 과업으로 분해하고 개발 순서 계획 (가이드: `docs/features/readme.md`)
+   - client-guide.md / design-spec.md의 **모든 화면(S1~Sn)을 열거**하고, 각 화면이 세부 과업에 빠짐없이 포함되었는지 대조
 5. **관련 코드 탐색**: 원본 리포에서 유사 기능의 기존 구현 패턴 확인 (Grep으로 타겟팅)
 6. **구현**: 워크트리에서 기존 아키텍처 패턴(ReactorKit, 모듈 구조)을 따라 구현, 과업 완료 시 리포 status.md 체크
 7. **상태 업데이트**: 프로젝트 tasks.md 체크, 파트 상태 변경 시 프로젝트 status.md 갱신
@@ -65,6 +67,10 @@ git worktree add ../projects/{프로젝트디렉토리}/worktrees/hellobot_iOS f
 - Tuist 모듈 구조에 맞게 파일 배치
 - 기존 네트워킹/UI 패턴을 따름 (새 패턴 도입 시 사유 명시)
 - 최소 지원 iOS 16.0
+- **문서 간 불일치 발견 시**:
+  1. 구현을 중단하고 불일치 항목을 사용자에게 보고
+  2. 임의로 한쪽을 선택하지 않음
+  3. 확인된 결정은 리포 status.md 결정 로그에 기록하고, 불일치한 항목을 수정하여 일치시킴
 
 ---
 

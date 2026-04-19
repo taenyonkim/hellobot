@@ -480,4 +480,4 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 |------|-----------|------|------|
 | 2026-04-15 | [workspace-ops-improvement](./20260415-workspace-ops-improvement/) | 완료 | 프로젝트 문서 구조 개선 — 중복 제거, 단일 소스 확립, design.md→architecture.md 명칭 변경 |
 | 2026-04-11 | [workspace-setup](./20260411-workspace-setup/) | 시범운영 | 통합 개발 환경 구축 — 구조/문서/커맨드 완료, coop-integration으로 검증 중 |
-| 2026-03-24 | [coop-integration](./20260324-coop-integration/) | 개발중 | 카카오 선물하기 상품권 연동 — 기획(상품 정의 진행중), 서버/웹 개발중, iOS/Android 대기 |
+| 2026-03-24 | [coop-integration](./20260324-coop-integration/) | 개발중 | 카카오 선물하기 상품권 연동 — Phase 1 아키텍처 개편 완료(서버/iOS/Android/웹 구현 완료), QA 검증 및 배포 대기 |

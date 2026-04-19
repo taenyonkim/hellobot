@@ -23,15 +23,16 @@
 - 제외:
   - 부분 사용 (전액 1회 소진만 지원)
   - 활성화(A1)/충전(C1) 프로세스 (쿠프마케팅 측 처리)
+  - 강제 업데이트 (구버전 앱 대응은 서버 사이드에서 해결)
 
 ## 영향 범위
 
 | 파트 | 영향 | 설명 |
 |------|------|------|
-| 서버 | O | 쿠프마케팅 API 연동, Entity/Service/Controller, Admin 페이지 |
-| iOS | O | 쿠폰 등록 UI, 하트 충전/스킬 교환 확인 팝업, 딥링크 |
-| Android | O | 쿠폰 등록 UI, 하트 충전/스킬 교환 확인 팝업, 딥링크 |
-| 웹 | O | 쿠폰 등록 UI (웹 버전) |
+| 서버 | O | 쿠프마케팅 API 연동, Entity/Service/Controller, Admin 페이지. `POST /api/coupon/register` 단일 진입점 + `coupon_prefix_rule` 기반 분류 (ISS-011 해결) |
+| iOS | O | 쿠폰 등록 UI, 1단계 원샷 응답 처리 (`issuedType` 분기로 완료 팝업/이용권 카드 표시), 딥링크, 미로그인 시 로그인 리다이렉트 |
+| Android | O | 쿠폰 등록 UI, 1단계 원샷 응답 처리 (`issuedType` 분기로 완료 팝업/이용권 카드 표시), 딥링크, 미로그인 시 로그인 리다이렉트 |
+| 웹 | O | 쿠폰 등록 UI (웹 버전), 1단계 원샷 응답 처리, 미로그인 시 로그인 리다이렉트 |
 | 스튜디오 | X | 해당없음 |
 | 데이터 | X | 해당없음 (추후 필요시 추가) |
 
@@ -63,7 +64,15 @@
 
 | 문서 | 설명 |
 |------|------|
-| `backend-architecture.md` | 백엔드 설계 (Entity, Service, 테이블 상세) |
+| `backend-design.md` | 백엔드 설계 (Entity, Service, 테이블 상세) |
 | `backend-guide.md` | 백엔드 개발 가이드 (구현 순서, 코드 골격) |
 | `testing/` | 테스트 플랜 및 결과 |
 | `deployment/` | 배포 가이드 |
+
+---
+
+## Changelog
+
+| 날짜 | 변경자 | 변경 내용 |
+|------|--------|----------|
+| 2026-04-19 | /analyze (via /workspace) | 영향 범위 표의 iOS/Android/웹 설명에서 "하트 충전/스킬 교환 확인 팝업" 제거 → "1단계 원샷 응답 처리 (`issuedType` 분기)"로 교체. 서버 설명에 `POST /api/coupon/register` 단일 진입점 + `coupon_prefix_rule` 명시 (ISS-011 해결 반영). |
