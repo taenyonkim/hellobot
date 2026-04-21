@@ -244,16 +244,19 @@ Request/Response 스키마는 기존과 동일:
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | fixedMenuSeq | number | X | 단일 스킬에 고정된 쿠폰(coop 스킬 이용권 등)일 때 해당 스킬 식별자. `CouponSpec.conditions[*].skillSeqs` 길이가 1인 경우에만 제공 |
+| expiresAt | string \| null | O | 쿠폰 사용 만료 시각 (ISO8601). **null인 경우 유효기간 무제한** — Coop 스킬 이용권(readme.md F3) 등 영구 사용 가능한 쿠폰. 클라이언트는 null 체크 후 만료일/만료임박 행을 조건부로 표시 |
 
 ### 적용 규칙
 
-- **추가 조건**: `couponSpec.conditions`의 `skillSeqs`가 정확히 1개이고 단일 스킬에 귀속되는 쿠폰에 한해 값 세팅
+- **fixedMenuSeq 추가 조건**: `couponSpec.conditions`의 `skillSeqs`가 정확히 1개이고 단일 스킬에 귀속되는 쿠폰에 한해 값 세팅
 - **그 외 쿠폰**: 필드 미제공(omit) 또는 `null`
 - **클라이언트**: optional로 해석 (iOS `fixedMenuSeq: Int?`, Android `fixedMenuSeq: Int?`). 존재 시 쿠폰 카드 탭 → `SkillDetail(fixedMenuSeq)` 네비게이션
+- **expiresAt null 케이스**: `usableDays`/`usableEndDate` 모두 미설정인 CouponSpec으로 발급된 쿠폰. Coop 스킬 이용권은 `usableDays = null`로 자동 생성됨 (ISS-021). 클라이언트는 카드 UI에서 null이면 만료일 행 미표시.
 
 ### 관련 이슈
 
-- ISS-010: 본 필드 추가로 iOS/Android S4 스킬 상세 이동 구현 완료 (2026-04-18)
+- ISS-010: `fixedMenuSeq` 필드 추가로 iOS/Android S4 스킬 상세 이동 구현 완료 (2026-04-18)
+- ISS-021: `expiresAt` null 허용 — Coop 스킬 이용권 무제한 적용 (2026-04-21)
 
 ---
 
@@ -423,6 +426,7 @@ Request/Response 스키마는 기존과 동일:
 
 | 날짜 | 변경자 | 변경 내용 | 확인 |
 |------|--------|----------|------|
+| 2026-04-21 | /dev-server | **ISS-021 해결**: `CouponDto.expiresAt` 타입 `Date` → `Date \| null` (null = 무제한). `calculateCouponExpiresAt`이 `usableDays`/`usableEndDate` 모두 미설정 시 null 반환. `findUsableCoupon(s)` 조건을 `expires_at IS NULL OR expires_at > NOW()`로 변경(NULL = 영구 사용 가능). Coop 스킬 spec 자동 생성 시 `usableDays = null` (기존 36500). 신규 발급분은 즉시 NULL로 발급. **기 발급분(dev 환경 한정)**은 1회성 수동 SQL로 보정 (production 미배포 상태이므로 마이그레이션 불요). 클라이언트는 카드 UI에서 expiresAt null 체크 후 만료일 행 미표시 권장. | 클라이언트 카드 UI 조건부 표시 대기 |
 | 2026-04-19 | /dev-server | **Phase 1 서버 구현 완료** — `CouponPrefixRule` 엔티티/마이그레이션(시드 90/91 → coop_marketing), `ErrorCode.CO_APP_UPDATE_REQUIRED`+i18n(ko 확정, ja/en placeholder), `POST /api/coupon/register` + `CouponRegisterService`, `CoopMarketingService.registerOneShot` (Redlock + check + use 원샷, 보상 완료 후 lock 해제), `POST /api/coupon` code 경로 가드(HTTP 406), AdminJS `CouponPrefixRule` 등록, `/api/coop/*` `@deprecated` JSDoc. `/api/coop/*` 동작 변경 없음. TS/ESLint 통과. | 클라이언트(웹/iOS/Android) 구현 대기 |
 | 2026-04-19 | /review 반영 | **설계 보완** (리뷰 발견 사항 반영): 응답 포맷 섹션 신설 — `/api/coupon/register`는 `data` 내부 nested 구조 통일(issuedCoupon 포함), `/api/coupon`은 기존 하이브리드 구조 유지 명시. `/api/coupon` 이중 경로(code/couponSpecSeq) 테이블 추가 — 가드는 code 경로에만 적용. 가드 발동 조건 상세 테이블 추가(6가지 입력 케이스별). 에러코드 표에 CM_001~CM_010 "(coop 플로우)" 명시 — 일반 쿠폰 플로우에서는 발생 안 함. Deprecated API 섹션에 Phase 1 동작 명시(기존 스키마 유지, @deprecated 주석만 추가) + Phase 2 정량 제거 조건. | 전파트 구현 예정 |
 | 2026-04-19 | /architect | **API 전면 개편** (ISS-011, ISS-009 해결): `POST /api/coupon/register` 신규 단일 진입점 추가 (폴리모픽 성공 응답 `resultType: "ISSUED"` + `issuedType: "coupon"\|"heart"\|"skill"`). 에러는 HTTP 표준 포맷 `{ error: { code, message } }` 사용. `POST /api/coupon`에 프리픽스 가드 추가 (구버전 앱 대응, `CO_APP_UPDATE_REQUIRED` 신규 에러코드). `/api/coop/check`, `/api/coop/use`는 Deprecated (Phase 2에서 제거). | 전파트 구현 예정 |

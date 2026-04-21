@@ -24,6 +24,7 @@
 - [x] Controller (POST /api/coupc-marketing/check, /use)
 - [x] Admin 페이지 (상품 관리 + 스킬 이용권 자동 생성, 사용 이력, API 로그)
 - [x] API 테스트 (필수 동작 + 전체 테스트)
+- [x] ISS-021: 스킬 이용권 발급 시 유효기간 무제한 설정 — `calculateCouponExpiresAt` Date|null 반환 + `findUsableCoupon(s)` NULL 허용 + Coop skill spec `usableDays = null` + `CouponDto.expiresAt: Date | null`. 기 발급분(dev)은 1회성 수동 SQL로 보정
 - [ ] Admin 정산 통계 custom page
 - [x] ISS-001: useCoupon 처리 순서 변경 — usage UPSERT 우선 + chargeHeart/issueCoupon 후속
 - [x] ISS-001: Admin 수동 취소 시 상품 회수 (하트 차감 + 회수 로그, 이용권 삭제)
@@ -47,6 +48,8 @@
 - [x] 프로필 탭 이동 (S3 완료 후)
 - [x] ISS-010: 이용권 카드 탭 → 스킬 상세 페이지 이동 (Coupon/CouponModel 필드 추가 + CouponListViewController adapter.rx.touch 바인딩, 2026-04-18)
 - [x] 미로그인 시 로그인 안내 배너 + 입력 시도 시 로그인 화면 직접 이동 + 로그인 후 쿠폰 페이지 복귀 (S6)
+- [x] ISS-019: 스킬 이용권 카드에 "스킬 보러가기 >" 링크 텍스트 추가 — CouponItemCell violet400 12px Bold (2026-04-21)
+- [x] ISS-021 클라이언트 대응: `Coupon.expiresAt: Date?` nullable 전환 — 쿠폰 리스트 디코딩 실패 방지 + 만료일 행 nil 가드 + remainDays Int.max fallback (2026-04-21)
 
 ## Android (/dev-android)
 - [x] 쿠폰 등록 화면에 상품권 코드 판별 로직 연동
@@ -57,6 +60,8 @@
 - [x] 프로필 탭 이동 (S3 완료 후) / 스킬 상세 페이지 이동
 - [x] 미로그인 시 로그인 안내 배너 + 입력 시도 시 로그인 화면 직접 이동 + 로그인 후 쿠폰 페이지 복귀 (S6)
 - [x] ISS-010: 이용권 카드 탭 → 스킬 상세 페이지 이동 (CouponData.fixedMenuSeq 추가 + 카드 onClick 핸들러)
+- [ ] ISS-019: 스킬 이용권 카드에 "스킬 보러가기 >" 링크 텍스트 추가 (12px Bold, #BE7AFE SUB PURPLE)
+- [ ] ISS-020: 스킬 이용권 등록 후 스킬 팝업 즉시 노출 제거 → 토스트 + 리스트 업데이트 방식으로 수정
 
 ## 웹 (/dev-web)
 - [x] 쿠폰 등록 UI에 상품권 코드 처리 연동
@@ -113,6 +118,7 @@
 - [x] 에러 처리는 기존 ReasonServerError 토스트 로직 재사용 (2026-04-19)
 - [x] ISS-018: S3 하트 완료 팝업 이미지 노출 수정 — `UIImage(named: "_Coop/img_heart_complete")` 네임스페이스 반영 (2026-04-19)
 - [x] ISS-018: S3 확인 버튼 프로필 탭 이동 수정 — onConfirm handler를 strong 캡처 후 dismiss completion에서 호출 (2026-04-19)
+- [x] ISS-019: 스킬 이용권 카드에 "스킬 보러가기 >" 링크 라벨 추가 — CouponItemCell에 violet400 12px Bold 라벨 추가, `fixedMenuSeq != nil`일 때만 노출 (2026-04-21)
 - [ ] QA 시나리오 대응 (Phase 1 배포 후)
 
 ### Android (/dev-android)

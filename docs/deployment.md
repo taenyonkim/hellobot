@@ -8,17 +8,21 @@
 
 ## hellobot-server
 
-| 환경 | 브랜치 | 트리거 |
-|------|--------|--------|
-| 개발 | `deploy-dev` | push |
-| 운영 | `master` | push |
+| 환경 | 배포 브랜치 | 트리거 | 비고 |
+|------|-----------|--------|------|
+| 피쳐 개발 기준 | `master` | - | 피쳐 브랜치를 `master`에서 분기 |
+| 개발 | `deploy-dev` | push (자동) | 피쳐 브랜치를 머지 후 푸시 |
+| 운영 | `master` | PR 머지 (담당자) | 피쳐 브랜치 푸시 → `master`에 PR 생성 → 담당자 머지 |
 
 ```bash
 # 개발 배포
 git checkout deploy-dev && git merge feat/xxx && git push
+# → GitHub Actions 빌드 → ArgoCD 자동 배포
 
 # 운영 배포
-git checkout master && git merge feat/xxx && git push
+git push origin feat/xxx
+gh pr create --base master --head feat/xxx
+# → 담당자 PR 리뷰/머지 → GitHub Actions 빌드 → ArgoCD 자동 배포
 ```
 
 **배포 후 필수**: DB 마이그레이션이 포함된 경우 `npm run typeorm:migration` 실행 필요.
@@ -130,37 +134,46 @@ git checkout deploy && git merge master && git push
 
 ## hellobot_android
 
-| 환경 | 방법 | 트리거 |
-|------|------|--------|
-| 개발 | Firebase App Distribution | GitHub Actions 수동 dispatch |
-| 운영 | Google Play Store | `master` push 또는 수동 dispatch |
+| 환경 | 방법 | 트리거 | 비고 |
+|------|------|--------|------|
+| 피쳐 개발 기준 | `develop` | - | 피쳐 브랜치를 `develop`에서 분기 |
+| 개발 | Firebase App Distribution | GitHub Actions 수동 dispatch | 피쳐 브랜치 푸시 후 GitHub UI에서 수동 실행 |
+| 운영 | Firebase App Distribution | GitHub Actions 수동 dispatch | 동일 파이프라인 (릴리스 빌드 변형 기반) |
 
 ```bash
-# 개발 배포 — GitHub Actions 수동 트리거
-# (GitHub UI에서 upload-app-distribution-dev 워크플로우 실행)
+# 피쳐 브랜치 생성
+git checkout develop && git pull
+git checkout -b feat/xxx
 
-# 운영 배포
-git checkout master && git merge feat/xxx && git push
-# 또는 GitHub UI에서 upload-play-store 워크플로우 수동 실행
+# 개발 / 운영 배포 모두 Firebase App Distribution
+git push origin feat/xxx
+# → GitHub UI에서 해당 워크플로우 수동 실행 (브랜치 선택)
+#   - 개발: upload-app-distribution-dev (Dev 빌드 변형)
+#   - 운영: upload-app-distribution (Prd 빌드 변형)
 ```
 
 로컬 빌드:
 ```bash
 ./gradlew :app:assembleDevRelease      # 개발 APK
-./gradlew :app:bundlePrdRelease        # 운영 AAB (Play Store용)
+./gradlew :app:bundlePrdRelease        # 운영 AAB
 ```
 
 ---
 
 ## hellobot_iOS
 
-| 환경 | 방법 | 명령어 |
-|------|------|--------|
-| 개발 (Beta) | TestFlight | `bundle exec fastlane testflight_beta_upload` |
-| 운영 | TestFlight | `bundle exec fastlane testflight_upload` |
-| App Store 제출 | App Store | `bundle exec fastlane submit` |
+| 환경 | 방법 | 명령어 | 비고 |
+|------|------|--------|------|
+| 피쳐 개발 기준 | `develop` | - | 피쳐 브랜치를 `develop`에서 분기 |
+| 개발 (Beta) | TestFlight (수동) | `bundle exec fastlane testflight_beta_upload` | 피쳐 브랜치에서 로컬 수동 실행 |
+| 운영 (TestFlight) | TestFlight | `bundle exec fastlane testflight_upload` | 운영 빌드 TestFlight 배포 |
+| 운영 (App Store) | App Store | `bundle exec fastlane submit` | App Store 심사 제출 |
 
 ```bash
+# 피쳐 브랜치 생성
+git checkout develop && git pull
+git checkout -b feat/xxx
+
 # 개발 배포 (TestFlight Beta)
 bundle exec fastlane testflight_beta_upload
 

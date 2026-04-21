@@ -11,7 +11,7 @@
 |------|------|--------|---------|------|
 | 기획 | 진행중 | - | - | 스킬 이용권 라인업 선정, 최종 상품 구성 확정 잔여 |
 | 디자인 | 완료 (Phase 1 반영 완료) | - | - | 2026-04-19: S2 확인 팝업 제거 반영 (1단계 전환) |
-| 서버 | Phase 1 구현 완료 | feat/coupnc-integration | worktrees/hellobot-server/ | Phase 1 구현 완료 (2026-04-19): `POST /api/coupon/register`, `CouponPrefixRule` 엔티티+시드, `CO_APP_UPDATE_REQUIRED`, 진입 가드, `registerOneShot`(Redlock), AdminJS, `/api/coop/*` @deprecated. 잔여: 메트릭 수집, API 테스트 추가, ja/en 번역 검수 |
+| 서버 | Phase 1 구현 완료 | feat/coupnc-integration | worktrees/hellobot-server/ | Phase 1 구현 완료 (2026-04-19): `POST /api/coupon/register`, `CouponPrefixRule` 엔티티+시드, `CO_APP_UPDATE_REQUIRED`, 진입 가드, `registerOneShot`(Redlock), AdminJS, `/api/coop/*` @deprecated. ISS-021 스킬 이용권 유효기간 무제한 적용 (2026-04-21, 신규 발급분만 코드 변경; 기 발급분은 dev에서 1회성 수동 SQL 보정). 잔여: 메트릭 수집, API 테스트 추가, ja/en 번역 검수 |
 | iOS | Phase 1 구현 완료 | feat/coop-integration | worktrees/hellobot_iOS/ | Phase 1 전환 완료 (04-19): 프리픽스 분기 제거 + 단일 API + S2 삭제 + ISS-018 해결. QA 대응 잔여 |
 | Android | Phase 1 구현 완료 | feat/coop-integration | worktrees/hellobot_android/ | Phase 1 전환 완료 (04-19): 프리픽스 분기 제거 + 단일 API + S2 삭제. QA 대응 잔여 |
 | 웹 | Phase 1 구현 완료 | feat/coop-integration | worktrees/hellobot-web/ | Phase 1 전환 완료 (04-19~20): 프리픽스 분기 제거 + 단일 API + S2 삭제 + ISS-017 해결. 웹뷰 검증 잔여 |
