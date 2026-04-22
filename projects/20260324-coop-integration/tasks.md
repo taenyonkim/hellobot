@@ -11,8 +11,9 @@
 - [x] 스킬 목록 topic/intent별 분류 (xlsx 멀티시트 생성)
 - [x] 현행 하트 상품 가격 정리 (앱/웹 플랫폼별 단가 비교)
 - [x] 카카오 선물하기 하트 상품 가격 초안 (5천/1만/3만/5만원, 웹 단가 기준)
-- [ ] 카카오 선물하기 스킬 이용권 상품 라인업 선정
-- [ ] 최종 상품 구성 확정
+- [ ] 카카오 선물하기 스킬 이용권 상품 라인업 선정 — [planning/kakao_coupon_product/product-lineup.md §2](planning/kakao_coupon_product/product-lineup.md)
+- [ ] 최종 상품 구성 확정 — product-lineup.md §1(하트)/§2(스킬) + [planning/product-code-scheme.md](planning/product-code-scheme.md) ProductCode 매핑 확정
+- [ ] 쿠프마케팅 상품 등록·테스트 쿠폰 요청서 송부 — [planning/coop-request-form.md](planning/coop-request-form.md)
 
 ## 서버 (/dev-server)
 - [x] 요구사항 정의 및 기존 시스템 검토
@@ -25,6 +26,7 @@
 - [x] Admin 페이지 (상품 관리 + 스킬 이용권 자동 생성, 사용 이력, API 로그)
 - [x] API 테스트 (필수 동작 + 전체 테스트)
 - [x] ISS-021: 스킬 이용권 발급 시 유효기간 무제한 설정 — `calculateCouponExpiresAt` Date|null 반환 + `findUsableCoupon(s)` NULL 허용 + Coop skill spec `usableDays = null` + `CouponDto.expiresAt: Date | null`. 기 발급분(dev)은 1회성 수동 SQL로 보정
+- [x] ISS-022: ISS-021 호환성 위반 시정 — `CouponDto.expiresAt`을 다시 `Date`(non-null)로 복귀, NULL은 직렬화 시 sentinel `2099-12-31T23:59:59.000Z`로 변환, 신규 `CouponDto.isUnlimited?: boolean` 필드 추가(true면 무제한). `UNLIMITED_EXPIRES_AT_SENTINEL` 상수 정의. SkillCouponDto에도 동일 패턴 propagate. DB NULL 유지 + `findUsableCoupons` 쿼리 유지(현행). 클라이언트 분기 대기
 - [ ] Admin 정산 통계 custom page
 - [x] ISS-001: useCoupon 처리 순서 변경 — usage UPSERT 우선 + chargeHeart/issueCoupon 후속
 - [x] ISS-001: Admin 수동 취소 시 상품 회수 (하트 차감 + 회수 로그, 이용권 삭제)
@@ -38,6 +40,7 @@
 - [x] api-spec.md 작성 (클라이언트용 API 명세)
 - [x] client-guide.md 작성 (클라이언트 개발 가이드)
 - [x] ISS-010: CouponDto에 fixedMenuSeq optional 필드 추가 (/api/coupon 응답) — 단일 skillSeqs 보유 쿠폰에 한해 노출
+- [x] ISS-029: AdminJS 사이드바 `Coupon Prefix Rule` 메뉴명 한글화 ("쿠폰 분류 규칙 설정") — `src/admin/locale.ts` labels에 `CouponPrefixRule: "쿠폰 분류 규칙 설정"` 추가 (2026-04-22)
 
 ## iOS (/dev-ios)
 - [x] 쿠폰 등록 화면에 상품권 코드 판별 로직 연동
@@ -49,7 +52,11 @@
 - [x] ISS-010: 이용권 카드 탭 → 스킬 상세 페이지 이동 (Coupon/CouponModel 필드 추가 + CouponListViewController adapter.rx.touch 바인딩, 2026-04-18)
 - [x] 미로그인 시 로그인 안내 배너 + 입력 시도 시 로그인 화면 직접 이동 + 로그인 후 쿠폰 페이지 복귀 (S6)
 - [x] ISS-019: 스킬 이용권 카드에 "스킬 보러가기 >" 링크 텍스트 추가 — CouponItemCell violet400 12px Bold (2026-04-21)
+- [x] ISS-023: 스킬 이용권 카드 하단 "스킬 보러가기 >" 링크를 **우측 정렬**로 수정 — CouponItemCell 하단을 row 레이아웃(좌측 grow wrapper + skillLinkLabel)으로 리팩토링 (2026-04-21)
 - [x] ISS-021 클라이언트 대응: `Coupon.expiresAt: Date?` nullable 전환 — 쿠폰 리스트 디코딩 실패 방지 + 만료일 행 nil 가드 + remainDays Int.max fallback (2026-04-21)
+- [x] ISS-022 클라이언트 대응: `Coupon.expiresAt: Date` (non-null) 복귀 + 신규 `isUnlimited: Bool?` 디코딩 추가 — 카드 UI 만료일/만료임박 행을 `coupon.isUnlimited == true`일 때 숨김 (sentinel 비교 금지). remainDays도 `isUnlimited` 기반 재작성 (2026-04-21)
+- [x] ISS-026: 쿠폰 코드 등록 에러 메시지 표시 로직 수정 — `CouponRegisterErrorMapper` 신설, 서버 `error.message`(ko)에 Hangul 포함 시 그대로 사용하고 빈/영문/네트워크 오류는 client-guide.md S5 ko 상수(CM_001~CM_010, CO_APP_UPDATE_REQUIRED)로 폴백, 오프라인은 "인터넷 연결이 오프라인 상태입니다." 고정 메시지로 치환 (2026-04-21)
+- [x] ISS-027: S4 "스킬 보러가기 >" 우측 화살표를 이미지(아이콘) 리소스로 교체 — 텍스트 `>` 제거 + SF Symbol `chevron.right` (violet400 틴트) 이미지뷰 horizontal stack 구성 (2026-04-21)
 
 ## Android (/dev-android)
 - [x] 쿠폰 등록 화면에 상품권 코드 판별 로직 연동
@@ -60,8 +67,13 @@
 - [x] 프로필 탭 이동 (S3 완료 후) / 스킬 상세 페이지 이동
 - [x] 미로그인 시 로그인 안내 배너 + 입력 시도 시 로그인 화면 직접 이동 + 로그인 후 쿠폰 페이지 복귀 (S6)
 - [x] ISS-010: 이용권 카드 탭 → 스킬 상세 페이지 이동 (CouponData.fixedMenuSeq 추가 + 카드 onClick 핸들러)
-- [ ] ISS-019: 스킬 이용권 카드에 "스킬 보러가기 >" 링크 텍스트 추가 (12px Bold, #BE7AFE SUB PURPLE)
-- [ ] ISS-020: 스킬 이용권 등록 후 스킬 팝업 즉시 노출 제거 → 토스트 + 리스트 업데이트 방식으로 수정
+- [x] ISS-019: 스킬 이용권 카드에 "스킬 보러가기 >" 링크 텍스트 추가 (12px Bold, #BE7AFE SUB PURPLE) — `CouponItem.kt` 카드 하단 우측 링크 (2026-04-21)
+- [x] ISS-020: 스킬 이용권 등록 후 스킬 팝업 즉시 노출 제거 → 토스트 + 리스트 업데이트 방식으로 수정 — `CouponListActivity.SkillIssued` 분기에서 자동 SkillDescriptionBottomSheet 호출 제거 (2026-04-21)
+- [x] ISS-016: Android 토스트 지속시간 2.5초 — `SafeToast.showToastForDurationMs(durationMs)` 신규 추가 (Toast.LENGTH_LONG + Handler.cancel best-effort) + `CouponListActivity` 토스트 3건(toastEvent/SkillIssued/ShowError) 모두 `COOP_TOAST_DURATION_MS=2500L`로 적용 (2026-04-21)
+- [x] ISS-022 클라이언트 대응: `CouponData.expiresAt: Date` (non-null) + 신규 `isUnlimited: Boolean?` 디코딩 추가 — 카드 UI 만료일/만료임박 행을 `coupon.isUnlimited == true`일 때 숨김 (2026-04-21)
+- [x] ISS-024: S4 카드 하단 "스킬 보러가기 >" 링크 우측 정렬 — `CouponItem.kt` 하단을 좌(유효기간/isUnlimited 분기)+우(링크) `space-between` Row로 재구성 (2026-04-21)
+- [x] ISS-028: S3 하트충전완료 모달 디자인 정합성 — design-spec "공통 컴포넌트 팝업"(288dp / radius 20 / padding 24 / shadow `0 8 24 rgba(0,0,0,0.24)`) 준수. 외곽 `Box(fillMaxSize, Center)` + 카드 `Column.width(288.dp)` 고정 + `shadow(elevation = 24.dp, ambient/spotColor alpha 0.24)` 추가 + 일러스트 240×117dp (`CoopConfirmScreen.kt`, 2026-04-21)
+- [x] ISS-027 (Android): S4 "스킬 보러가기 >" 우측 화살표를 이미지(아이콘) 리소스로 교체 — `coop_link_view_skill` 문자열 3종(ko/ja/en)에서 ` >` 제거, `CouponItem.kt` 우측 링크를 `Row(Text + Icon)`으로 재구성. chevron 아이콘은 기존 벡터 드로어블 `R.drawable.icon_arrow_right_16` 재사용(하드코딩된 `#C6C8CC` fillColor는 `Icon(tint = violet400)`으로 오버라이드). 라벨 12sp Bold, 아이콘 12×12dp, 틴트 `#BE7AFE` (2026-04-22)
 
 ## 웹 (/dev-web)
 - [x] 쿠폰 등록 UI에 상품권 코드 처리 연동
@@ -72,6 +84,9 @@
 - [x] 미로그인 시 쿠폰 입력창 포커스 → 로그인 화면 직접 이동 + 로그인 후 쿠폰 페이지 복귀 (S6 팝업 → 직접 리다이렉트로 기획 변경)
 - [x] S3 하트 충전 완료 → 프로필 탭(/user) 이동으로 변경 (design-spec 정합성)
 - [x] ISS-010: Coupon 타입에 `fixedMenuSeq?: number` optional 필드 추가 (hellobot-web `types/coupon.ts`. hellobot-webview는 `/api/coupon` 미사용으로 영향 없음. UI 동작 변경 없음)
+- [x] ISS-022 클라이언트 대응: `Coupon` 타입의 `expiresAt: string`(non-null) 유지 + 신규 `isUnlimited?: boolean` 추가 — 쿠폰 카드(coupon/payment/skill-detail 3곳) 만료일 행/만료임박 표시를 `isUnlimited === true`일 때 숨김. sentinel 직접 비교 금지 주석 추가. hellobot-web만 영향 (2026-04-21)
+- [x] ISS-016: 공통 `components/toast.tsx`의 `DURATION_TIME` 3000ms → 2500ms로 변경 — design-spec/client-guide S5 계약 반영. 공유 컴포넌트라 전역 토스트 지속시간에 적용 (2.5초는 업계 표준 범위로 타 피쳐 UX 영향 경미) (2026-04-21)
+- [x] ISS-025: 스킬 이용권 카드 재진입 시 하단 "스킬 보러가기" 영역/탭 동작 유실 수정 — `/coupon` page.tsx에서 `couponData.coupons` 중 `fixedMenuSeq`가 있는 항목을 `CoopSkillVoucherItem`으로 렌더링(서버 재조회 후에도 이용권 카드 UI 유지). 로컬 `skillVouchers` optimistic 상태는 `fixedMenuSeq` 기준 dedup. 스킬 등록 직후 `mutate('/api/coupon')` 호출 추가하여 재진입 전부터 서버 데이터와 동기화 (2026-04-21)
 
 ### Phase 1 — ISS-011/ISS-009 (신규 단일 진입점 `/api/coupon/register` 전환, 2026-04-19)
 - [x] `couponCodeRegister.tsx` 프리픽스 분기 제거 (`COOP_PREFIXES`, `isCoopCouponCode`, `handleCoopCheck`, `handleCoopUse` 삭제)
@@ -83,13 +98,59 @@
 - [x] 번역 키 정리: 확인 팝업 관련 키 9개(`coop_heart_confirm_*`, `coop_skill_confirm_*`, `coop_button_*`) 제거 — ko/ja/en
 - [x] 일본어 번역 검수 — 잔존 키(complete/toast/voucher) 자연스러움 확인 완료
 - [x] ISS-017: 일반 쿠폰 등록 완료 후 리스트 즉시 반영되지 않는 버그 — 원인(page.tsx 렌더링이 SWR 캐시 직접 사용) 확인 후 `useSWRConfig.mutate('/api/coupon')` 호출 추가 (coupon 분기만; skill 분기는 중복 노출 방지로 제외)
-- [ ] 웹뷰 환경 검증 (모바일 앱 내 WebView에서 동작 확인)
+- [x] ~~웹뷰 환경 검증 (모바일 앱 내 WebView에서 동작 확인)~~ — **해당 없음으로 종결 (2026-04-21)**. 아키텍처 확정 결과 iOS는 `CouponListViewController`, Android는 `CouponListActivity`로 쿠폰 화면을 네이티브 직접 구현하며 hellobot-web `/coupon`을 앱 WebView로 임베딩하지 않음. hellobot-webview(Angular)도 `/api/coupon` 미사용. 따라서 웹 변경이 앱 동작에 미치는 WebView 경로 없음. (필요 시 별개 과업으로 "모바일 브라우저 반응형 QA(iOS Safari/Android Chrome)" 재정의 가능)
 
 ## 스튜디오 (/dev-studio)
 해당없음
 
 ## 데이터 (/dev-data)
-해당없음 (추후 정산 데이터 파이프라인 필요 시 추가)
+
+> 목적: 1pager Success Metric 측정 — (input) 상품권 구매 전환율, (output) 앱/웹 신규 구매자수. 추가로 정산 대사 및 운영 대시보드 데이터 제공.
+> 설계 문서:
+> - [planning/success-metrics-kpi.md](planning/success-metrics-kpi.md) — KPI 프레임워크 (PM 작성)
+> - [planning/performance-analysis-design.md](planning/performance-analysis-design.md) — 데이터 엔지니어링 설계 (이벤트 스펙·마트·DAG·SQL)
+
+### 성과 측정 지표 정의 (선행 — 기획/데이터 합의)
+- [x] KPI 정의서 초안 작성 — [planning/success-metrics-kpi.md](planning/success-metrics-kpi.md) (2026-04-22 /analyze)
+- [x] 데이터 엔지니어링 설계서 초안 — [planning/performance-analysis-design.md](planning/performance-analysis-design.md) (2026-04-22 /dev-data)
+- [ ] KPI 정의서 v1.0 확정 — 오픈 이슈 의사결정 후 (performance-analysis-design.md §9 TBD 8건 + success-metrics-kpi.md §6 7건)
+- [ ] 어트리뷰션 규칙 확정 — 등록=전환 단순화(제안), 신규 구매자 옵션 C 병행(제안) 승인 (§9-4, §9-6)
+- [ ] 쿠프마케팅 측 발급/판매 데이터 수령 방식 합의 — CSV/API/정산파일 (§9-3)
+
+### 이벤트 스펙 (서버 연계 필요)
+설계: performance-analysis-design.md §3
+- [ ] 서버 이벤트 3종 publish 구현 (hellobot-server):
+  - `coop_coupon_register_attempt` (진입)
+  - `coop_coupon_register_success` (issuedType, product_code, fixed_menu_seq, latency_ms 등)
+  - `coop_coupon_register_failure` (error_code — CM_001~010, CO_APP_UPDATE_REQUIRED)
+- [ ] 이벤트 화이트리스트 등록 — `hlb_staging.staging_key_events_se_events_list` 3건 INSERT (§9-1 절차 확정 후)
+- [ ] Firebase 이벤트 추가는 Phase 2 검토 (Phase 1 불필요 — 매출·전환은 서버 이벤트로 충분)
+
+### BigQuery ETL (common-data-airflow)
+설계: performance-analysis-design.md §4
+- [ ] Glue 스냅샷 추가 — `coupc_marketing_coupon_usage`, `coupc_marketing_product` (§9-2)
+- [ ] `staging_coupc_marketing_coupon_usage`, `staging_coupc_marketing_product` SQL + DAG task
+- [ ] `intermediate_coop_coupon_event` SQL — server_events 3종 + product 조인
+- [ ] `mart_coop_coupon_usage` SQL + DAG task — 그레인: 쿠폰 1장, is_new_user/is_first_paying 컬럼 포함
+- [ ] `union_mart_user_key_actions.sql` 수정 — `funnel_from_coop_coupon` 컬럼 추가 (heart 24시간 창 + skill issued_coupon_seq 매칭)
+- [ ] `report_coop_daily`, `report_coop_monthly` SQL + DAG task
+- [ ] `hellobot_coop_coupon_issued_ingest` DAG 신규 (쿠프마케팅 발급 데이터 적재, 수령 방식 확정 후)
+- [ ] 정산 대사 로직 — 쿠프마케팅 L1 사용 내역 vs `coupc_marketing_coupon_usage` 일치 검증
+- [ ] 데이터 카탈로그 갱신 — mart-catalog.md, event-catalog.md, metric-dictionary.md (common-data-airflow/docs/hellobot/catalog/, 코드 PR 동시 반영 필수)
+
+### 대시보드/리포트
+설계: performance-analysis-design.md §6
+- [ ] 대시보드 도구 결정 (§9-5 — Looker 권장)
+- [ ] 경영진 월간 대시보드 (신규 구매자/전환율/정산대상액/상품별 Top5)
+- [ ] 운영 일간 대시보드 (등록추이/에러분포/구버전 가드 발동/L1 레이턴시)
+- [ ] 상품 성과 월간 (상품별 GMV/스킬 이용권→진입 전환/재등록자)
+- [ ] 정산 대사 월간 (대사 불일치 탐지)
+- [ ] Slack KPI 주간 요약 발송 (§9-8 채널 확정 후 `hlb_kpi_noti` 확장)
+
+### 의존 관계
+- KPI 정의서 확정 → 이벤트 스펙 확정 → 서버 이벤트 publish 구현 → 프로덕션 배포 → 1일 이상 데이터 축적 → BQ ETL 개발
+- 서버 Phase 1 배포 완료 및 프로덕션 데이터 축적 이후 실 DAG 개발 의미 있음 (dev 환경 데이터로 검증 불가 — env=production 필터)
+- 쿠프마케팅 발급 데이터 수령 방식 합의는 정산 시작 전 완료 필요 (익월 10일 정산)
 
 ## Phase 1 — ISS-011 + ISS-009 해결 (2026-04-19 설계 확정)
 
@@ -102,7 +163,7 @@
 - [x] `ErrorCode.CO_APP_UPDATE_REQUIRED` 추가 + i18n ko 메시지 — "앱 업데이트가 필요한 쿠폰이에요." (ja/en은 번역 검수 잔여 — 빈 문자열 placeholder)
 - [x] `POST /api/coupon/register` 컨트롤러 구현 (src/controllers/coupon.ts에 추가)
 - [x] `CouponRegisterService` 신설 — prefix 분류 → coop/일반 분기 → 원샷 처리
-- [x] Coop 원샷 처리: `CoopMarketingService.registerOneShot` — `checkCoupon` + `useCoupon` 재사용, Redlock(`locks:coop:${code}`) 보상 완료 후 해제 (ISS-015 동시 해소)
+- [x] Coop 원샷 처리: `CoopMarketingService.registerOneShot` — `checkCoupon` + `useCoupon` 재사용, Redlock(`coop:lock:${code}`) 보상 완료 후 해제 (ISS-015 동시 해소)
 - [x] 폴리모픽 응답 DTO: `CouponRegisterResponseDto` — `resultType: "ISSUED"`/`issuedType: "coupon"|"heart"|"skill"` + `data` 내부 nested 필드 (issuedCoupon 포함)
 - [x] `POST /api/coupon` 진입 가드 추가 — `code`가 비어있지 않은 문자열일 때만 `CouponPrefixRule` 조회 후 requiresNewFlow=true 매칭 시 HTTP 406 `CO_APP_UPDATE_REQUIRED` throw. `couponSpecSeq` 경로 영향 없음
 - [x] 가드 발동 로그에 `code` 마스킹 처리 (`CoopMarketingService.maskCouponCode` 재사용)
@@ -152,6 +213,12 @@
 - [ ] Phase 1 클라이언트 배포 후 P1-E01, P1-C01/C02 (구버전 회귀) 검증
 - [ ] 동시성 시나리오: P1-R05 (Redlock + usage UNIQUE)
 - [ ] 에러 시나리오: CM_001~CM_010 각 에러별 토스트 메시지 검증 (기존 TC 재활용)
+- [x] **TC 커버리지 보강 (2026-04-21 계약 반영)** (2026-04-21 오후): qa-test-cases.md 상단에 "2026-04-21 보강" 섹션 신설 — 7건 추가. qa-test-cases-v11.xlsx 생성 (Flow V 신설, 사용자 시트 54→61건). 전체 145→152건.
+  - [x] (a) **ISS-022 isUnlimited 분기** — TC-V-UL01 (만료일 텍스트 미표시), TC-V-UL02 (N일 남음 배지 미표시), TC-V-UL03 (일반 쿠폰 만료일 회귀), TC-V-UL04 (만료 임박 조건 회귀). Web/iOS/Android 매트릭스.
+  - [x] (b) **ISS-016 토스트 지속시간 2.5초** — TC-V-TD01. Web/iOS/Android 모두 2.5초 ±0.3초 기대. Android도 2026-04-21 SafeToast(COOP_TOAST_DURATION_MS=2500L) 해결로 통과 기대.
+  - [x] (c) **ISS-017 Web 즉시 반영** — TC-V-WR01 (일반 쿠폰 리스트 즉시 반영 + 헤더 카운트 +1), TC-V-WR02 (스킬 이용권 중복 렌더 없음). Web 단독, iOS/AOS N/A.
+- [x] **플랫폼 매트릭스 주석 추가** (2026-04-21 오후): qa-test-cases.md 상단 "📌 플랫폼 매트릭스 주석" 섹션 신설 + v11 xlsx 요약 시트 3행 + 사용자 시트 Flow V 헤더에 주석 삽입 완료. architecture.md §6 기반 "앱 내 WebView 임베딩 없음, WebView 유형 TC는 N/A" 명시.
+- [x] **기존 TC 상태 업데이트** (2026-04-21 오후): TC-W-D08 Android 비고에 ISS-016 Android 해결(SafeToast) 반영. TC-A-S07/S08 기대 결과를 ISS-019/020 Android 해결 반영으로 "Pass 예상"으로 전환.
 - [ ] Admin CRUD: P1-A01~A04 실행
 
 ## Phase 2 — 후속 (별도 릴리스)
@@ -176,11 +243,72 @@
 - [x] ISS-014: screen-plan.md S3 완료 팝업 기술을 design-spec 확정본 기준으로 갱신 — screen-plan.md §3 S3 재작성 완료 (2026-04-19)
 
 ### 서버 (dev-server)
-- [ ] ISS-015: Redlock 미구현 해소 — `POST /api/coupon/register` 구현 시 Coop 원샷 처리에 Redlock 필수 적용으로 통합 해소 (위 Phase 1 서버 과업에 포함)
+- [x] ISS-015: Redlock 미구현 해소 — `POST /api/coupon/register` 구현 시 Coop 원샷 처리에 Redlock 필수 적용으로 통합 해소 (위 Phase 1 서버 과업에 포함, 2026-04-19)
 
 ### 클라이언트 (dev-web, dev-android)
-- [ ] ISS-016 (web): 에러 토스트 지속시간 2.5초 적용 — components/toast.tsx:5 DURATION_TIME 또는 coop 영역 전용 설정. Phase 1 재작업과 함께 처리 권장
-- [ ] ISS-016 (android): 에러 토스트 지속시간 2.5초 적용 — CouponListActivity.kt:148,164 커스텀 타이머/SafeToast 설정 확인. Phase 1 재작업과 함께 처리 권장
+- [x] ISS-016 (web): 에러 토스트 지속시간 2.5초 적용 완료 (2026-04-21, 위 웹 파트 참조)
+- [x] ISS-016 (android): 에러 토스트 지속시간 2.5초 적용 완료 (2026-04-21, `SafeToast.showToastForDurationMs` + `COOP_TOAST_DURATION_MS=2500L`)
+
+## 개발환경 QA 이슈 (2026-04-22 /qa — Notion 스프린트 트래커 연동)
+
+> 출처: Notion 스프린트 "[스쿼드A] 카카오 선물하기 쿠폰 등록" 중 Done이 아닌 태스크 전수 이관 (DLT-HLB-1034, 1045, 1047, 1049, 1051~1053, 1055~1061)
+> 상태: 각 이슈의 근본 원인·해결 방안 미확정 → 담당 에이전트별 **분석·해결방안 구상 → 사용자 확인 → 구현**의 단계로 진행
+> 공통 이슈(ISS-030/033/036/039/040/042)는 파트별로 분리 기재 — 각 파트가 독립 판단/구현
+
+### 서버 (/dev-server)
+- [x] ISS-029: AdminJS 사이드바 `Coupon Prefix Rule` 메뉴명 한글화 ("쿠폰 분류 규칙 설정") — 위 "## 서버 (/dev-server)" 섹션과 중복 (해당 과업의 분석/구현 시 함께 처리). 2026-04-22 완료
+- [x] ISS-039 (서버 i18n): `CO_APP_UPDATE_REQUIRED` ja/en 메시지 번역 리소스 보강 — `src/locales/en.ts`에 "Please update to the latest version.", `src/locales/ja.ts`에 "アプリを最新バージョンにアップデートしてください" 채움 (2026-04-22)
+- [ ] ISS-043 (서버 분석): 신규 가입자 스킬이용권 사용 시 스킬 인트로 대신 챗봇 인트로 출력 원인 분석 — **보류 (2026-04-22)**: 사용자 지시로 진행 보류. 분석 결과는 issues.md에 기록됨 (스튜디오 설정 검증/재현 로그 수집이 선행 필요)
+
+### iOS (/dev-ios)
+
+> **분석 완료 (2026-04-22)**: 9건 모두 issues.md에 `**분석 (2026-04-22 iOS)**` 블록 기록.
+> **즉시 착수 5건 구현 (2026-04-22)**: ISS-030/033/035/038/041 일괄 구현 완료.
+> **선결 대기 4건**: ISS-036(iOS 앱 실기기 재현 확인), ISS-040(dev 서버 `/api/coupon` tags 응답 확인), ISS-042(디자인 스펙 확정), ISS-039(서버 ja/en locale 배포 후 iOS fallback 판정 완화).
+
+- [x] ISS-030 (iOS): `CouponListViewController`의 `editingDidBegin`/`sendCouponCode()` 2개 `presentSingup()` 호출부에 `AppString.toastPlzLogin` 전달 → `goSignupModal` 토스트 경로 활성화 — 2026-04-22 해결
+- [x] ISS-033 (iOS): `handleRegisterResponse(_:)` `.coupon` 분기에 `showCouponToast(.Coupon.Register.successToast)` 추가 + 로컬라이즈 `coupon_register_success_toast` ko/en/jp 신규 (Android 문구와 통일). 스킬 성공 토스트도 `.Coupon.Register.skillSuccessToast`로 분리 — 2026-04-22 해결
+- [x] ISS-035 (iOS): `CoopHeartCompletePopupView.illustrationImageView`를 `ImageContentView` + 기존 하트충전 Lottie(`imgHeartchargeComplete`, loop)로 교체 — 2026-04-22 해결
+- [ ] ISS-036 (iOS): 스킬이용권 사용 후 대화방 뒤로가기 시 쿠폰함 갱신 — **iOS 앱 실기기 재현 확인 선결** (정적 분석상 viewWillAppear→refreshCoupon 바인딩 기존재로 미재현 가능성 높음). 재현 확인 후 결정
+- [x] ISS-038 (iOS): `CouponListViewController.showCouponToast(_:)` 헬퍼 신설 → `Toast(text:, config: ToastConfig(displayTime: 2.5)).show()`. 레거시 `showToast(msg:)` 2개 호출부 + ISS-033 신규 호출을 일원화 — 2026-04-22 해결
+- [ ] ISS-039 (iOS): `CouponRegisterErrorMapper.resolve()` 판정을 "빈 문자열만 폴백, 비-한글도 서버 값 우선"으로 완화 — **서버 ja/en locale 배포 후 착수** (배포 이후 회귀 방지 차원). 서버는 2026-04-22 tasks.md 서버 섹션에서 해결됨으로 표기됨 → 배포 확인 필요
+- [ ] ISS-040 (iOS): 스킬 이용권 카드 우측 상단 '이용권' 라벨 노출 — **dev 서버 `/api/coupon` 응답 tags 내용 선확인**. 빈 배열 반환 시 클라이언트 측 derive(`fixedMenuSeq + isUnlimited` 조건), 이미 포함 시 렌더 버그 재조사
+- [x] ISS-041 (iOS): `CouponItemCell.bind()`에서 스킬 이용권(`fixedMenuSeq != nil && isUnlimited == true`) 시 `descriptionLabel.isHidden = true` + flex collapse로 "0하트 이상 결제 시" 문구 행 제거 — 2026-04-22 해결
+- [ ] ISS-042 (iOS): 쿠폰 등록 버튼 응답 대기 중 비활성화 + 스피너 노출 — **디자인 스펙 확정 선결** (버튼 내 스피너 vs 전체 오버레이 vs GIF 결정 필요)
+
+### Android (/dev-android)
+
+> **분석 완료 (2026-04-22)**: 6건 모두 issues.md에 `**분석 (2026-04-22 Android)**` 블록 기록. ISS-033/ISS-039 방향 결정 완료 (2026-04-22).
+> **실행 순서**: Step 1(4건 병렬) → Step 2(ISS-033 A안) → ISS-039는 서버 의존, Android 코드 수정 없음
+
+**Step 1 — 즉시 수행 가능 (4건, 병렬)**
+- [x] ISS-030 (Android): `CouponListActivity.CoopEvent.NavigateToLogin` 분기에서 `SafeToast.showToastForDurationMs(ctx, R.string.common_toast_plz_login, 2500L)` 호출 후 `SignupActivity.enterForResult(ctx, null, "coop_coupon_input")` 전달 (Intent extra toast = null) — 2026-04-22 해결
+- [x] ISS-036 (Android): `CouponListActivity.onResume` 오버라이드 → `viewModel.load()` 호출. `loadData()`를 no-op로 변경해 onCreate 경로 중복 load 방지 (dedupe 가드보다 단순/명시적). onStart→onResume 시퀀스에서 실질 지연 없음 — 2026-04-22 해결
+- [x] ISS-040 (Android): `CouponItem.kt` 우상단 태그 Row에서 `isUnlimited && fixedMenuSeq != null` 조건 검출 시 `R.string.coop_label_voucher`(ko/ja/en 기존 보유)를 `coupon.tagList` 앞에 prepend + 중복 제거 렌더 — 2026-04-22 해결
+- [x] ISS-042 (Android): `CouponListViewModel`에 `_isRegistering: MutableStateFlow<Boolean>` 신설 → register 진입/완료 전환. Activity가 `collectAsState` 후 `CouponInputSection`에 전달 → 버튼 `enabled = !isInputEmpty && !isRegistering` + `CircularProgressIndicator(16.dp, Gray900, 2.dp strokeWidth)` 내부 렌더 분기. `doFinally`로 상태 리셋 보장 — 2026-04-22 해결
+
+**Step 2 — 결정 수령 후 (1건)**
+- [ ] ISS-033 (Android): **A안 확정** — `CoopEvent.GeneralCouponIssued` 신규 케이스 추가. `CouponListViewModel.register` `IssuedType.COUPON` 분기의 `_toastEvent.value = Event(...)`를 `_coopEvent.emit(CoopEvent.GeneralCouponIssued)`로 교체. `CouponListActivity` observeUi에 `is CoopEvent.GeneralCouponIssued -> SafeToast.showToastForDurationMs(ctx, R.string.coupon_description_coupon_registered_successfully, COOP_TOAST_DURATION_MS)` 추가. `_toastEvent` LiveData는 본 이슈 범위 내에서는 유지(다른 사용처 영향 회피)
+
+**ISS-039 — 서버 의존, Android 코드 수정 없음**
+- [ ] ISS-039 (Android, 무코드): 서버 `src/locales/en.ts` / `src/locales/ja.ts` `CO_APP_UPDATE_REQUIRED` 번역 배포 후 **QA 회귀 확인**만 수행. Android `strings.xml` 추가/클라이언트 폴백 추가하지 않음(2026-04-22 결정). 서버 배포 지연되거나 회귀 표면화 시 별도 enhancement로 분리
+
+### 웹 (/dev-web)
+- [ ] ISS-031 (웹): 스킬 이용권 쿠폰 카드 여백 기존 쿠폰과 동일화 — 서브 텍스트 영역 reserve, 점선 아래/카드 높이 통일
+- [ ] ISS-032 (웹): "스킬 보러가기 >" 화살표 컬러 `#BE7AFE`(violet400) 적용 (iOS/Android는 ISS-027로 완료)
+- [ ] ISS-033 (웹): 일반 쿠폰 등록 성공 시 "쿠폰이 등록되었어요" 토스트 노출 분기 추가
+- [ ] ISS-034 (웹): 스킬이용권 사용 후 뒤로가기 시 쿠폰 이름 "이용권" 접미사 탈락 방지 — 리스트 재조회 시 이름 규칙 유지
+- [ ] ISS-035 (웹): 하트 충전 쿠폰 등록 완료 팝업 이미지 GIF 재생 적용 (Android 기 적용)
+- [ ] ISS-036 (웹): 스킬이용권 사용 후 뒤로가기 시 쿠폰함 갱신 — SWR mutate 또는 route change listener
+- [ ] ISS-037 (웹): 스킬 이용권 카드 '이용권' 라벨 래디어스/패딩을 기존 라벨 스펙과 정렬
+- [ ] ISS-042 (웹): 쿠폰 등록 버튼 응답 대기 중 비활성화 + 스피너 노출
+
+### 진행 방식
+1. **분석 단계** (현재): 각 파트 에이전트(`/dev-server`, `/dev-ios`, `/dev-android`, `/dev-web`)가 담당 이슈를 하나씩 검토 → issues.md 해당 항목 하단에 `**분석 (yyyy-mm-dd 파트)**` 블록으로 근본 원인·해결 방안·영향 범위·예상 리스크 기록
+2. **확인 단계**: 사용자가 분석 결과 검토 후 승인/조정
+3. **구현 단계**: 승인된 방안을 각 파트 워크트리에서 구현 → tasks.md 체크, issues.md 상태 "해결 (날짜)"로 갱신
+
+> 순서: iOS → Android → 웹 → 서버 (클라이언트 먼저 검토 → 서버 API/i18n 변경이 필요한지 역추적)
 
 ## 의존 관계
 
