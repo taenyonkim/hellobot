@@ -92,6 +92,13 @@ projects/
   │  issues.md 등록 + tasks.md 과업 추가
   │  설계 변경 필요 → 계약 문서 수정 + Changelog 기록
   │  해결 완료 → issues.md 상태 변경 + tasks.md 체크
+  │
+  ▼
+/workspace 종료 {프로젝트명}
+  │  사전 점검 → 미완 과업/이슈 정리 → PR 링크 수집
+  │  영속 산출물 승격 (planning/, 카탈로그 등)
+  │  status.md §종료 정보 추가 + projects/readme.md 상태 갱신
+  │  (워크트리 정리는 hotfix 윈도우 후 별도 단계)
 ```
 
 > **피드백 루프**: 위 워크플로우는 순방향이지만, 개발·리뷰·QA 중 이슈가 발견되면
@@ -255,6 +262,76 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
   # 필요시 브랜치도 삭제
   git branch -d feat/{프로젝트명}
   ```
+
+---
+
+## 프로젝트 종료 절차
+
+프로젝트의 모든 작업이 완료되면 `/workspace 종료 {프로젝트명}` 으로 종료 절차를 수행합니다. 핵심은 **나중에 "이 프로젝트가 어떤 변경을 만들어냈는지" 추적 가능하도록 PR 링크를 남기는 것** + **영속 산출물·미해결 이슈를 어디로 보냈는지 명확히 기록하는 것** 입니다.
+
+### 종료 시 수행할 작업
+
+| # | 작업 | 결과물 |
+|---|------|--------|
+| 1 | 모든 파트 status가 `완료` 인지 확인 | (검증) |
+| 2 | tasks.md 미체크 항목 정리 (완료/이관/drop) | tasks.md |
+| 3 | issues.md 미해결 항목 정리 (이관/SSOT 이전/drop) | issues.md |
+| 4 | 머지된 PR 링크 수집 (`gh pr list --search "head:feat/<프로젝트명>" --state merged`) | status.md §종료 정보 |
+| 5 | 영속 산출물 승격 (planning/, 카탈로그 등 → 리포 docs/ 또는 워크스페이스 docs/) | (이전) + status.md 기록 |
+| 6 | status.md 를 `완료` 로 변경 + §종료 정보 섹션 추가 | status.md |
+| 7 | 프로젝트 목록 테이블 (이 문서 §프로젝트 목록) 상태 갱신 | projects/readme.md |
+| 8 | 워크트리/브랜치 정리는 hotfix 윈도우(1~2주) 후 별도 단계 | (정리 예정일만 기록) |
+
+> **금지**: 사용자 확인 없는 워크트리·브랜치 삭제, 미해결 이슈 drop, 영속 산출물 이전. 머지되지 않은 PR이 있는데 종료 강행.
+
+### status.md §종료 정보 템플릿
+
+종료 시 status.md 하단에 추가합니다.
+
+```markdown
+---
+
+## 종료 정보
+
+**종료일**: YYYY-MM-DD
+**종료 상태**: 완료 (정상 종료) | 취소 | 보류
+
+### 머지된 PR
+
+| 리포 | PR | 제목 | 머지일 |
+|------|----|----|--------|
+| common-data-airflow | [#176](https://github.com/thingsflow/common-data-airflow/pull/176) | docs: HelloBot 데이터 카탈로그 이전 + 동기화 규칙 | 2026-04-22 |
+| hellobot-server | [#1234](https://github.com/...) | feat: 쿠팡 연동 API | 2026-04-20 |
+
+### 승격된 영속 산출물
+
+| 산출물 | 원위치 (프로젝트) | 승격 위치 |
+|--------|------------------|----------|
+| 데이터 카탈로그 | `planning/` | `common-data-airflow/docs/hellobot/catalog/` |
+
+(없으면 "없음" 으로 표기)
+
+### 미해결 이슈 처리
+
+| ID | 처리 | 비고 |
+|----|------|------|
+| ISS-008 | 후속 프로젝트로 이관 | 후속 프로젝트명/링크 |
+| ISS-011 | SSOT(`catalog/issues.md`)로 이전 | 데이터 인프라 영속 이슈 |
+| ISS-099 | drop | 사유: 우선순위 낮음, 별도 추적 불필요 |
+
+(없으면 "없음" 으로 표기)
+
+### 워크트리/브랜치 정리
+
+| 리포 | 브랜치 | 워크트리 | 정리 예정일 |
+|------|--------|---------|------------|
+| common-data-airflow | `Feat/data-infra-documentation` | `worktrees/common-data-airflow` | 2026-05-06 (hotfix 윈도우 종료 후) |
+
+### 회고 (선택)
+
+- 잘된 점:
+- 개선할 점:
+```
 
 ---
 
@@ -478,6 +555,7 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 | 날짜 | 프로젝트명 | 상태 | 설명 |
 |------|-----------|------|------|
+| 2026-04-22 | [data-infra-documentation](./20260422-data-infra-documentation/) | 완료 (2026-04-22) | HelloBot 데이터 카탈로그를 `common-data-airflow/docs/hellobot/catalog/` 로 이전 + 동기화 규칙 신설 ([PR #176](https://github.com/thingsflow/common-data-airflow/pull/176)). ISS-001 해결, ISS-002~011 SSOT 이전 |
 | 2026-04-15 | [workspace-ops-improvement](./20260415-workspace-ops-improvement/) | 완료 | 프로젝트 문서 구조 개선 — 중복 제거, 단일 소스 확립, design.md→architecture.md 명칭 변경 |
 | 2026-04-11 | [workspace-setup](./20260411-workspace-setup/) | 시범운영 | 통합 개발 환경 구축 — 구조/문서/커맨드 완료, coop-integration으로 검증 중 |
 | 2026-03-24 | [coop-integration](./20260324-coop-integration/) | 개발중 | 카카오 선물하기 상품권 연동 — Phase 1 아키텍처 개편 완료(서버/iOS/Android/웹 구현 완료), QA 검증 및 배포 대기 |
