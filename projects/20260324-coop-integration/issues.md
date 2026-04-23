@@ -7,6 +7,71 @@
 
 ---
 
+### ISS-045: Android — 서버 `error.message` 누락/공백 시 에러 토스트 미노출 (Generic 폴백 필요)
+
+| 분류 | enhancement |
+| 발견일 | 2026-04-23 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | Android 해결 (2026-04-23) — `CouponListActivity.CoopEvent.ShowError` 분기의 `isNotEmpty()` 가드를 `ifBlank { getString(R.string.coop_error_generic) }` 폴백으로 교체. strings.xml ko/ja/en 3종에 `coop_error_generic`("오류가 발생했어요" / "エラーが発生しました" / "Something went wrong") 추가. 서버가 항상 값을 내려주는 현재는 무증상이지만 장래 누락/네트워크 문제 시 최소 UX 피드백 보장. |
+
+**현상**: `POST /api/coupon/register` 실패 응답에서 `error.message`가 빈 문자열이거나 필드 자체가 누락되면 Android는 `CoopEvent.ShowError(message = "")`를 emit하고, 기존 Activity 분기는 `if (event.message.isNotEmpty()) { 토스트 }` 가드로 **아무 피드백도 표시하지 않음** — 사용자는 등록 실패 여부조차 알 수 없음.
+**출처**: ISS-029/039/044 서버 i18n 배포(2026-04-23) 후 점검 과정(`/dev-android`)에서 `extractServerMessage` 빈 문자열 폴백 경로 확인 중 발견. 서버는 현재 항상 값을 내려주므로 실제 재현은 되지 않았으나 방어적 보강 필요로 판단.
+
+**분석 (2026-04-23 Android)**:
+- **근본 원인**: `CouponListViewModel.extractServerMessage`(line 185-200)가 파싱 실패/빈 message 시 `""`을 반환하고, Activity 쪽이 이를 "표시 안 함"으로 해석하는 설계 (line 140-148 이전 버전 `if (event.message.isNotEmpty())`). 서버 계약(api-spec.md §Error 코드)은 항상 message가 채워져 있다고 가정하나, 네트워크 타임아웃·응답 파싱 실패·신규 에러 코드 추가 전 ja/en 누락 등 예외 상황에서 빈 문자열이 유입될 가능성 존재.
+- **해결 방안 (권장)**: Activity 레벨에서 `event.message.ifBlank { getString(R.string.coop_error_generic) }` 폴백 적용. ViewModel은 그대로 두어 context 의존성 주입 없이 처리. CoopEvent/ViewModel 시그니처 변경 없음 → 리팩토링 범위 최소.
+- **대안 (기각)**: (A) ViewModel에서 `ResString` 반환형 CoopEvent로 변경 — CoopEvent.ShowError(ResString) 리팩토링 필요, 영향 범위 과도. (B) ViewModel에 Context/Resources 주입 — MVVM 원칙 위반. (C) 서버 응답 스키마 강제 (`error.message` non-null 계약 명시 + 미준수 시 500) — 서버 파트 과업, Android 방어 로직과 병행 가능하나 단독으로는 느림.
+- **i18n 선택**:
+  - ko "오류가 발생했어요" — `CM_xxx` 친근체(~이에요/~했어요, 2026-04-23 통일) 정합
+  - ja "エラーが発生しました" — 기존 `CM_005` "一時的なサービスエラーが発生しました" 톤 계승
+  - en "Something went wrong" — 모바일 앱 표준 표현. `CM_005` en "A temporary service error occurred"보다 generic에 어울림
+- **영향 범위**: Android 단독(iOS/웹 파트 별도 평가 필요 — iOS는 `CouponRegisterErrorMapper`가 빈 메시지 시 client-guide.md S5 ko 상수로 폴백하므로 이미 방어 로직 있음 / 웹은 `/dev-web`가 별도 판단). API 계약 변경 없음. 서버 로직 변경 없음. strings.xml 신규 키 1건 × 3언어.
+
+---
+
+### ISS-044: coop-integration 사용자 노출 문구 ja/en 번역 누락 11건 — i18next fallback 미발동
+
+| 분류 | bug |
+| 발견일 | 2026-04-23 |
+| 심각도 | P3 |
+| 영향 파트 | 서버 (i18n 리소스), iOS/Android/웹 (수신 측 — 코드 변경 없음, 회귀 확인만) |
+| 상태 | 서버 해결 (2026-04-23) — `src/locales/{ko,ja,en}.ts` ERROR 10건(`CM_001`~`CM_010`) + CONFIG 1건(`COUPON_POPUP_TITLE`) 모두 api-spec.md §i18n 번역 세트 표 값으로 치환. 추가로 ko `CM_001`~`CM_010` 표기를 "~입니다"→"~이에요" 친근체로 통일(정책 A 채택). 클라이언트(iOS/Android/웹) 회귀 확인 권장(특히 ko 표기 변경분). |
+
+**ko 표기 정책 판단 (2026-04-23 /dev-server)**: 정책 A 채택 — api-spec.md(SSOT)가 이미 "~이에요" 친근체로 확정되어 있고, ISS-039의 `CO_APP_UPDATE_REQUIRED` ko도 동일 친근체로 적용된 상태이며, CONFIG 항목들(COUPON_POPUP_TITLE, ATTENDANCE_*, MESSAGE_*)도 모두 친근체라 톤 일관성 확보 목적. coop 플로우는 개발환경 단계라 운영 사용자 회귀 영향 없음.
+
+**현상**:
+- `POST /api/coupon/register` 의 coop_marketing 실패 플로우에서 반환하는 `error.message`가 ja/en 요청 시 **빈 문자열** 또는 **ko 원문** 그대로 노출됨 → 클라이언트 토스트에서 빈 메시지/한국어 노출.
+- 일반 쿠폰 발급 시 응답되는 `IssuedCouponDto.popupTitle`(`COUPON_POPUP_TITLE`)이 ja/en에서 ko "쿠폰을 받았어요!" 그대로 노출됨 — 일반 쿠폰은 Coop과 무관하게 전 로케일 사용 가능하므로 상시 결함.
+
+**원인**: `i18next`의 `fallbackLng: "ko"`는 대상 로케일 리소스가 **undefined일 때만** fallback을 발동. 빈 문자열(`""`) 또는 ko와 동일한 문자열을 유효 번역으로 간주해 원문을 그대로 노출함. 본 프로젝트에서 ja/en 작성 시 빈 placeholder 또는 ko 복사본으로 잠정 반영된 문자열이 리소스에 잔존.
+
+**영향 범위 (리소스 11건)**:
+- ERROR(`errorLocalize`) 10건: `CM_001`~`CM_010`
+- CONFIG(`configLocalize`) 1건: `COUPON_POPUP_TITLE`
+
+**선행 과업 (완료)**: api-spec.md §에러 코드 아래에 "i18n 번역 세트 (ko/ja/en 확정, 2026-04-23)" 섹션 신설 완료. ja/en 확정 문구는 api-spec.md에 단일 진실 공급원으로 기재됨. (2026-04-23 /analyze)
+
+**해결 방안 (구현 대기)**:
+- `/dev-server`가 `src/locales/ja.ts` / `src/locales/en.ts`의 해당 11개 키 값을 api-spec.md §i18n 번역 세트 표 값으로 치환.
+- 기 적용된 `CO_APP_UPDATE_REQUIRED`(ISS-039) 동일 패턴 — 코드 수정 없음, 문자열 리소스만 갱신.
+- ISS-026 iOS 폴백 매퍼(`CouponRegisterErrorMapper`)는 workaround로 유지되나 서버 정상화 후 자연스럽게 서버값 우선 경로로 동작.
+
+**관련 이슈**:
+- ISS-039: `CO_APP_UPDATE_REQUIRED` ja/en 확정·적용 — 동일 패턴의 선행 건.
+- ISS-026: iOS 에러 메시지 폴백 매퍼 — 서버 정상화 시 폴백 경로가 자연 비활성 (코드 변경 불필요).
+
+**스펙 보강 (2026-04-23 사용자 직접 수정)**:
+- `CM_009` ko 문구를 "쿠폰 스펙을 찾을 수 없어요" → **"쿠폰 정보를 찾을 수 없어요"로 정비** — "스펙" 내부 용어 제거. api-spec.md §에러 코드 표/§i18n 번역 세트/§번역 원칙 모두 동기 반영됨. client-guide.md CM_009 메시지 행도 동기 반영.
+- `CM_008` en 문구를 "Failed to issue skill voucher" → **"Failed to issue skill coupon"으로 조정** — 서비스 용어 "coupon" 통일성 확보.
+
+**참고 (선택 후속 과업, 본 이슈 범위 밖)**:
+- 서버 ko 리소스 일부가 "~입니다"로 작성된 반면 api-spec.md는 "~이에요" 친근체로 기재 — 서버 ko 리소스 표기 통일 여부는 `/dev-server` 후속 판단.
+
+**출처**: 서버 i18n 검토 (2026-04-23), /analyze 사용자 지시.
+
+---
+
 ### ISS-043: 신규 가입자 스킬이용권 사용 시 스킬 인트로 대신 스킬 챗봇 인트로 출력
 
 | 분류 | bug |
@@ -62,7 +127,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | 웹, iOS, Android |
-| 상태 | Android 해결 (2026-04-22) — `CouponListViewModel._isRegistering: MutableStateFlow<Boolean>` 신설, register 진입 시 true, `doFinally`로 종료 시 false 보장. `CouponListActivity` `collectAsState`로 구독 후 `CouponInputSection(isRegistering)` 전달. 버튼 `enabled = !isInputEmpty && !isRegistering`, 배경색도 동일 조건으로 토글, 내부에 라벨 대신 `CircularProgressIndicator(16dp, Gray900, 2dp strokeWidth)` 렌더. 등록 중 TextField `enabled=false` + clear 아이콘 숨김. 웹/iOS는 미해결. |
+| 상태 | Android 해결 (2026-04-22 → 2026-04-23 rollback: 스피너 제거, disable+gray 단순화로 플랫폼 일관성 확보), Web 해결 (2026-04-22) — `couponCodeRegister.tsx` 버튼 내부에 `animate-spin` 기반 인라인 스피너 추가(16×16, border `gray-600`, top-transparent), 응답 대기 시 라벨 대신 스피너 렌더. 풀스크린 `<Loading />` 제거. `aria-busy`/`aria-label`로 접근성 보강. iOS 해결 (2026-04-22) — 스피너 없이 disable + 회색. `CouponInputFieldView`에 `isInputFilledRelay` + `isRegisteringRelay` BehaviorRelay 2개 도입, `setupContext()`에서 `combineLatest { filled && !registering }`를 `sendButton.rx.isEnabled`에 바인딩(단일 진실 공급원). 회색 표시는 기존 `backgroundColor(.gray400, state: .disabled)` + `titleColor(.gray200, state: .disabled)` 토큰 재사용 — 신규 색상 정의 없음. `CouponListViewController.registerCoupon(code:)`에 `.do(onSubscribe:, onDispose:)` 훅 추가로 API 요청 라이프사이클 전체(성공/실패/취소)에서 relay 리셋 보장. 스피너/GIF/오버레이 미도입. 수정 파일: `Hellobot/Feature/Coupon/CouponList/Views/CouponInputFieldView.swift`, `Hellobot/Feature/Coupon/CouponList/CouponListViewController.swift`. |
 
 **현상**: 스킬 교환권 쿠폰 등록 시 응답 대기 로딩이 길어 사용자가 버튼이 안 눌린 것으로 착각하고 중복 클릭할 가능성이 있음. 버튼 비활성화 + 스피너 표기로 진행 상태를 명확히 인지시킬 필요.
 **출처**: Notion DLT-HLB-1060.
@@ -111,6 +176,19 @@
 - **영향 범위**: Android 단독. API/디자인 스펙 변경 없음. `CircularProgressIndicator` Material3 컴포넌트는 이미 사용 중(다른 화면)이므로 추가 의존 없음. 문자열 리소스 추가 없음.
 - **리스크**: `isRegistering`과 `isProcessing` 상태 동기화 누락 시 무한 disabled 가능. `register.onSuccess`/`onError` 양쪽 finally에 false 리셋 보장 필요. RxJava `doFinally`로 래핑하거나 try-finally 구조화 권장.
 - **부수 효과 (ISS-032 등 디자인 스펙 체크)**: 스피너 색상은 design-spec.md가 명시하지 않은 것으로 보임 — 기본 Yellow400 버튼 배경에 Gray900 스피너로 가독성 확보. 필요 시 디자이너 승인 후 색상 변경. `/design` 파트에 스피너 색상·크기 확인 요청 제안.
+
+**결정 (2026-04-22 사용자)**: **스피너 미구현 방침**으로 단순화. 등록 버튼 탭 직후:
+1. **버튼 비활성화** — 진행 중 재탭/중복 요청 방지
+2. **시각 표시** — 비활성 상태를 **회색**으로 변경 (일반 disabled 스타일과 동일, 별도 로딩 표시 불필요)
+3. 응답 수신(성공/실패 모두) 후 버튼 활성화 복귀
+
+**파트별 적용 방향**:
+- **iOS (미해결 → 본 결정 적용 대상)**: `BehaviorRelay<Bool>`로 `isRegistering` 노출 → `sendButton.isEnabled` + 배경색/텍스트색을 회색으로 토글. 스피너 UI 추가 작업 없음. 기존 sendButton의 **입력 비어있을 때의 disabled 스타일**과 동일 톤(예: 배경 Gray400/Gray200, 텍스트 Gray600 등 — 현재 사용 중 값 그대로 재사용)을 재사용해 `isInputEmpty || isRegistering` 조건 합치기.
+- **Android (rollback 완료, 2026-04-23)**: 기존 `CircularProgressIndicator` 스피너 분기 제거. 버튼 내부는 단일 `Text(coupon_title_btn_input)`만 렌더하며 **`isButtonEnabled = !isInputEmpty && !isRegistering`** 조건으로 (a) 배경 `Yellow400 → Gray400` (b) 텍스트 색 `Gray900 → White` 토글하여 disabled 톤 일관 노출. `_isRegistering: MutableStateFlow<Boolean>` + `.doFinally` 리셋 로직, `BasicTextField.enabled = !isRegistering`/clear 아이콘 숨김 가드는 유지(중복 탭/입력 변경 차단 목적). 플랫폼 일관성(iOS와 동일 "disable + gray" UX) 확보.
+- **Web (이미 해결됨)**: 현재 버튼 내 `animate-spin` 인라인 스피너 적용 상태. Android와 동일 판단 — **유지**(rollback 불요). 단 "탭 시 즉시 disabled + 회색" 요건은 이미 충족됨(버튼 `disabled` 상태 + 회색 톤).
+- **향후 플랫폼 정합성 필요 시**: Web/Android의 스피너를 제거해 iOS와 동일하게 "disabled + 회색"만 유지하는 rollback 옵션 별도 판단(현 시점 불요).
+
+**디자인 스펙 반영**: design-spec.md/client-guide.md에 "쿠폰 등록 버튼 로딩 상태 — 요청 중 disabled + 회색. 스피너 표시 금지" 문구로 `/architect`가 명시 추가. 기존 disabled 토큰 재사용이라 신규 색상 정의 불필요.
 
 ---
 
@@ -196,7 +274,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P2 |
 | 영향 파트 | Android, iOS |
-| 상태 | 서버 해결 (2026-04-22) — `src/locales/en.ts`에 "Please update to the latest version.", `src/locales/ja.ts`에 "アプリを最新バージョンにアップデートしてください" 채움 (기대안 2번 문구 채택). 클라이언트(iOS/Android) 앱 번들 번역 검토는 별개 과업. |
+| 상태 | 서버 해결 (2026-04-22) — `src/locales/en.ts`에 "Please update to the latest version.", `src/locales/ja.ts`에 "アプリを最新バージョンにアップデートしてください" 채움 (기대안 2번 문구 채택). iOS 해결 (2026-04-23) — `CouponRegisterErrorMapper`의 `resolve()` / `ReasonServerError` 경로에서 `containsHangul` 게이트 제거. 서버 `message`/`reason`이 non-empty이면 그대로 표시(서버 ja/en 번역 자연 반영), 빈 문자열·서버 응답 없음(offline 등)만 클라이언트 ko 상수 safety net으로 폴백. `codeMessages` 테이블은 빈 문자열 방어용으로 존속(정상 운영 시 미진입). `nonEmpty(_:)` 헬퍼로 trim/empty 가드 통일. 수정 파일: `Hellobot/Feature/Coupon/Network/CouponRegisterErrorMapper.swift`. 클라이언트(Android/Web) 앱 번들 번역 검토는 별개 과업. |
 
 **현상**: 앱 언어를 en/jp로 변경 후 구버전 가드 대상 쿠폰 코드를 등록하면 번역된 문구 없이 빈 문자열 또는 원문(ko) 그대로 표시됨. ISS-009 대응 시 서버 i18n 잔여(ja/en 빈 placeholder)에 따른 것으로 추정. iOS 앱도 재현 확인 필요.
 **기대**:
@@ -289,7 +367,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | 웹 |
-| 상태 | 미해결 |
+| 상태 | 해결 (2026-04-22) — `CoopSkillVoucherItem` 라벨을 `CouponItem` 태그와 동일 스타일(`px-[6px]`/`rounded-full`/`border-gray-200`/`text-gray-600`/`leading-[18px]`)로 통일. 절대위치 → 첫 행 flex `justify-between` 구조로 변경해 100%와 수직 정렬 자동 보정. |
 
 **현상**: 웹 스킬 이용권 카드 우측 상단의 "이용권" 라벨이 기존 라벨 디자인과 형태가 다름. 래디어스 값과 상하좌우 패딩을 기존 라벨 스펙에 맞게 조정 필요.
 **재현**: D-001 케이스.
@@ -315,7 +393,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P2 |
 | 영향 파트 | Android, 웹 (iOS 앱 확인 필요) |
-| 상태 | Android 해결 (2026-04-22) — `CouponListActivity.onResume` 오버라이드 → `viewModel.load()` 호출. `loadData()`는 no-op로 변경해 onCreate 경로 중복 load 방지. onStart→onResume 시퀀스에서 실질 지연 없음. 뒤로가기/재진입 경로 모두 커버. 부수 효과로 ISS-034(이용권 접미사 탈락)의 Android 재현분 동반 해소 기대 — QA 재확인 필요. 웹/iOS는 미해결. |
+| 상태 | Android 해결 (2026-04-22), Web 해결 (2026-04-22) — `app/coupon/page.tsx`에 `pageshow` 이벤트 훅 추가 → `event.persisted`(bfcache 복원) 시 `mutate('/api/coupon')`로 즉시 재검증. 서버가 used voucher를 응답에서 자동 제외하는 것이 확인되어 재조회만으로 사용된 쿠폰이 목록에서 제거됨. ISS-034도 동반 해소될 것으로 예상 — QA 재검증 필요. iOS는 미해결. |
 
 **현상**: 스킬이용권 0원 결제 완료 후 대화방에서 하드웨어/소프트 뒤로가기 버튼으로 쿠폰함으로 복귀하면 사용한 쿠폰이 목록에 그대로 남아있음. 쿠폰함을 완전히 나갔다 재진입하면 정상적으로 사라짐 — 즉, 뒤로가기 경로에서 쿠폰 리스트 갱신(재조회)이 누락됨.
 **재현**: 스킬이용권 쿠폰 등록 → 쿠폰 선택 → 대화방 진입 → 0원 결제 → 인트로 시작 → 뒤로가기로 대화방 이탈 → 쿠폰함 화면 유지 → 사용한 쿠폰도 유지됨.
@@ -375,7 +453,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | iOS, 웹 (Android는 GIF 재생 확인됨) |
-| 상태 | iOS 해결 (2026-04-22) — `CoopHeartCompletePopupView.illustrationImageView`를 `UIImageView` + 정적 PNG(`_Coop/img_heart_complete`) → `ImageContentView` + 기존 하트충전 Lottie(`imgHeartchargeComplete`.asLocalAnimation, loopMode=.loop)로 교체. Lottie 원본 1184×576(≈2.055:1)이 design-spec 240×117(≈2.05:1)와 비율 일치 → 기존 제약 그대로 `.scaleAspectFit`로 꼭 맞음. 웹은 미해결(design-spec GIF/Lottie 자산 확정 대기). |
+| 상태 | iOS 해결 (2026-04-22) — `CoopHeartCompletePopupView.illustrationImageView`를 `UIImageView` + 정적 PNG(`_Coop/img_heart_complete`) → `ImageContentView` + 기존 하트충전 Lottie(`imgHeartchargeComplete`.asLocalAnimation, loopMode=.loop)로 교체. Lottie 원본 1184×576(≈2.055:1)이 design-spec 240×117(≈2.05:1)와 비율 일치 → 기존 제약 그대로 `.scaleAspectFit`로 꼭 맞음. / 웹 해결 (2026-04-22) — `coopHeartCompletePopup.tsx`의 정적 PNG(`/images/coop/img_heart_complete.png`) + Next.js `<Image>`를 **기존 프로젝트 자산** `/images/heart/heart_charge.gif` (이미 `BonusHeartModal`에서 사용 중, 1184×576 원본) + plain `<img>` 태그로 교체. Next.js `<Image>`는 GIF 애니메이션 미지원이라 `BonusHeartModal`의 plain `<img>` + `?t={timestamp}` 캐시 버스터 패턴을 동일 적용; `useMemo(..., [])`로 마운트 시점 1회 고정하여 리렌더 시 GIF 리셋 방지. 레이아웃은 `-mx-[24px] w-[288px] h-[140px]`로 padding 밖까지 확장, 원본 비율(≈2.06) 유지. 디자인 자산 신규 발급 없음(사용자 결정 준용). |
 
 **현상**: 하트 충전 쿠폰 등록 완료 팝업 내 이미지가 정적 이미지로 표시됨. 기존 하트충전 팝업(쿠폰 외 경로)은 GIF로 재생되므로 쿠폰 등록 완료 팝업도 동일하게 GIF 재생되어야 함. Android 앱에서는 이미 GIF 재생 확인됨(화란 테스트). iOS/웹 확인 필요.
 **재현**: A-002 케이스.
@@ -402,6 +480,13 @@
   - (A) Android가 **legacy GIF `img_heartcharge_completed.gif`를 재사용** 중이라면 → 웹도 동일 GIF를 `public/images/coop/`로 복제 + `<Image>` → `<img>`(또는 `<Image unoptimized>`) 교체로 즉시 적용 가능. design-spec.md §S3 포맷도 PNG→GIF로 `/architect` 보강.
   - (B) Android가 **신규 자산**을 발급받았다면 → 디자이너에게 웹 대응 자산 동일 발급 요청 후 적용. 병행하여 `/architect`가 design-spec 업데이트.
 - **진행 상태**: Android 답변 대기. 답변 수령 시 스펙 보강 + 자산 확보 2-step으로 즉시 착수 가능.
+
+**결정 (2026-04-22 사용자)**: **디자인 신규 발급 없음 — 각 플랫폼이 기존 자원에서 유사 리소스를 탐색해 재사용**.
+- iOS: 이미 `imgHeartchargeComplete` Lottie 재사용으로 해결됨(A안 적용) — 본 결정과 정합.
+- Android: `img_heartcharge_completed.gif` 재사용으로 해결됨 — 본 결정과 정합.
+- **웹 (담당)**: 하트 충전 관련 기존 애니메이션 자산을 **프로젝트 내에서 탐색** (후보: `hellobot-web`의 `public/` 디렉토리 내 기존 하트 관련 GIF/Lottie, hellobot-webview/legacy의 하트충전 팝업 자산, Android/iOS에서 쓰이는 자산을 웹용으로 가공 복제 등). 유사 자산 발견 시 `<img>` 또는 `<Image unoptimized>`로 교체 적용.
+- **못 찾을 경우**: 작업 중단 + 사용자에게 보고 ("찾을 수 없음, 신규 발급 필요"). 무리한 대안(추정 자산 가공·PNG fallback)은 진행 금지.
+- design-spec.md §S3 자산 정의는 웹이 어떤 자산을 채택하느냐에 따라 `/architect`가 사후 반영. 선행 작업 불필요.
 
 ---
 
@@ -503,7 +588,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | 웹 |
-| 상태 | 미해결 |
+| 상태 | 해결 (2026-04-22) — CSS filter로 `#BE7AFE` 근사하던 외부 SVG(`icon_arrow_right_small.svg`) 사용을 중단하고 `CoopSkillVoucherItem`에 인라인 SVG(`fill="#BE7AFE"`)로 교체. 텍스트와 화살표 컬러 정확 일치. |
 
 **현상**: 웹 스킬 이용권 카드 하단 "스킬 보러가기 >" 링크의 화살표(chevron) 컬러가 텍스트 컬러와 일치하지 않음. 텍스트와 동일한 `#BE7AFE` (violet400)로 지정되어야 함.
 **관련**: ISS-027은 iOS/Android의 아이콘 리소스 교체 건 — 웹은 별개 대응 필요.
@@ -528,7 +613,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | 웹 |
-| 상태 | 미해결 |
+| 상태 | 웹 해결 (2026-04-22) — `CoopSkillVoucherItem`의 `flex flex-col gap-[12px]` 컨테이너를 해체하고 `CouponItem`과 동일한 수직 리듬(`mb-[2px]` 제목 + 서브텍스트 reserve `<p className="text-[12px] leading-[18px] invisible">` + `my-[12px]` 점선 + `leading-[18px]` 하단 링크)으로 재구성. 카드 외부 `<li>`에는 min-height 강제 없이 내부 reserve만으로 일반 쿠폰 카드와 동일 높이/수직 정렬 달성. |
 
 **현상**: 웹 스킬 이용권 쿠폰 카드의 여백이 기존 쿠폰 카드와 맞지 않음. 다음 3가지 조정 필요:
 1. 서브 텍스트("30,000원 이상 결제 시") 영역 — 스킬 이용권은 해당 텍스트가 없으므로 **그 영역만큼의 빈 공간**이 유지되어야 함 (기존 쿠폰과 수직 정렬 맞추기 위함).
@@ -559,6 +644,17 @@
 - **디자이너 답변 대기**: Figma 원본 측정값 필요 — (1) S4 스킬 이용권 카드의 **전체 높이** (기존 쿠폰 카드와 동일한지, 동일하면 정확한 px), (2) **서브텍스트 reserve 영역 높이**(leading-18px 한 행 분량인지 별개 spacing인지), (3) **점선 위·아래 수직 여백**(기존 `my-[12px]`와 동일 여부).
 - **답변 후 즉시 착수 가능**: 답변 수령 시 "해결 방안 1번(CouponItem 구조 모방)" + 확인된 픽셀 값으로 적용. ISS-037/ISS-032와 동일 컴포넌트라 동반 PR 권장.
 - **진행 상태**: 디자이너 답변 대기.
+
+**결정 (2026-04-22 사용자)**: **각 플랫폼의 기 구현된 "일반 쿠폰 카드(CouponItem 등)" 디자인을 그대로 준용**. 구체적으로:
+- 박스 전체 **높이값**은 일반 쿠폰(모든 요소 노출 상태)과 **동일**하게 유지.
+- **점선 하단 여백**(점선 ~ 만료일 행/하단 링크 영역 간격)도 동일하게 유지.
+- 스킬 이용권에서 **없는 요소**(예: 서브텍스트 "30,000원 이상 결제 시", 만료일)는 **레이아웃 공간은 reserve** 하고 **내용만 미노출**(visibility hidden / `invisible` / spacer div 등).
+- 원칙: "같은 모양·같은 크기 — 요소만 빈 것처럼 보이게". 수직 리듬 깨지지 않도록 reserved height를 동일 px로 확보.
+- 별도 Figma 측정값 불필요 — 플랫폼별 현 CouponItem 렌더 결과의 실측값을 reserve 기준으로 사용.
+
+**추가 영향**:
+- 동일 원칙이 iOS/Android의 `CouponItemCell`/`CouponItem.kt`에도 현재 적용되어 있는지 점검 필요. iOS는 ISS-041 해결 시 "isUnlimited 시 `descriptionLabel.isHidden = true` + `flex.isIncludedInLayout = false`"로 **행 collapse** 채택 상태 — 본 결정과 **상이**. 통일 필요 → iOS/Android도 reserve 방식으로 전환 검토 대상.
+- `/architect`에 client-guide.md / design-spec.md §S4에 "스킬 이용권 카드는 일반 쿠폰 카드와 **동일 높이·동일 수직 리듬 유지**. 없는 요소는 공간 reserve + 내용 미노출" 명시 추가 요청.
 
 ---
 

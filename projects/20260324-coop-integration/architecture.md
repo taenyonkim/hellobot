@@ -429,13 +429,26 @@ coupc_marketing_product          (상품 정의)
 - 타입 정의 정리: `CoopCheckResponse`/`CoopUseResponse` 제거 또는 `CouponRegisterResponse`로 통합
 
 **Phase 0 구현 완료**: 타입, API 훅, 팝업 3종, 이용권 카드, CouponCodeRegister 통합, 번역, Figma 디자인 반영
-**잔여**: 모바일 웹뷰 환경 검증, 일본어 번역 검수
+**잔여**: (없음 — "모바일 웹뷰 환경 검증" 항목은 2026-04-21 아키텍처 확정 결과 해당 없음으로 종결. 하단 "앱 WebView 임베딩 여부" 참조)
+
+### 앱 WebView 임베딩 여부 (2026-04-21 확정)
+
+**결론: 쿠폰 등록 화면은 어떤 플랫폼에서도 앱 WebView로 임베딩되지 않음.**
+
+| 플랫폼 | 쿠폰 등록 화면 구현 | 진입 경로 |
+|--------|----------------------|-----------|
+| iOS 앱 | **네이티브** `Hellobot/Feature/Coupon/CouponList/CouponListViewController.swift` (ReactorKit) | 프로필 탭 내 네이티브 네비게이션 |
+| Android 앱 | **네이티브** `app/src/main/java/com/thingsflow/hellobot/coupon/CouponListActivity.kt` (Jetpack Compose) | 프로필 탭 내 네이티브 Intent |
+| 웹 브라우저 | **Next.js** `hellobot-web/app/coupon/page.tsx` | 스킬스토어 웹(`NEXT_PUBLIC_SKILLSTORE_URL`)에서 직접 라우팅. back/완료 시 `${SKILLSTORE_URL}/user`로 복귀 |
 
 ### 웹뷰 (hellobot-webview, hellobot-report-webview)
 
 **영향 없음** (2026-04-19 확인):
 - 두 웹뷰 리포 모두 쿠폰 등록 엔드포인트(`/api/coupon`, `/api/coop/*`) 호출 경로 없음
+- `/coupon` 경로 자체가 없어 앱 WebView에 임베딩될 대상도 아님
 - Phase 1에서 수정 대상 아님
+
+**결과: 웹 클라이언트 변경이 앱 동작에 주는 영향은 없음. 반대도 마찬가지.** Coop Phase 1은 iOS/Android/웹 세 플랫폼이 각각 독립적으로 `/api/coupon/register`를 호출하는 구조.
 
 ### iOS / Android (네이티브)
 
@@ -590,6 +603,7 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
 
 | 날짜 | 이슈 | 변경 내용 |
 |------|------|----------|
+| 2026-04-21 | /architect | §6 "앱 WebView 임베딩 여부" 섹션 신설 — iOS `CouponListViewController`, Android `CouponListActivity`, Web `hellobot-web/app/coupon/page.tsx`의 세 플랫폼이 독립 구현이며 앱 WebView 공유 경로 없음을 확정. "모바일 웹뷰 환경 검증" 항목 해당 없음으로 종결 근거 기록. |
 | 2026-04-19 | /architect (via /workspace) | **2차 리뷰 반영**: §1 이중 경로 표 code 기반 행의 "기존 경로는 구버전 앱 전용" 문구를 "기존 `/api/coupon`의 code 경로는 구버전 앱 호환용으로만 유지"로 명확화 (셀 범위 해석 모호성 제거). |
 | 2026-04-19 | /review 반영 | **설계 보완** (리뷰 발견 사항 반영): §1에 "기존 `/api/coupon` 이중 경로(code/couponSpecSeq) 이해" 테이블 추가 — couponSpecSeq 경로 미변경 명시. §4 CouponPrefixRule "조회 전략" 확정(매 요청마다 DB 조회, 캐시 없음) + Raw SQL 시드 스키마 prefix 주의. §5-2에 DB 트랜잭션 경계 명시(two-phase commit, 보상 패턴) + Redlock 보상 완료 후 해제 규칙. §5-4 가드 발동 조건 세부 테이블 추가(6가지 입력 케이스별 동작). §6 웹뷰 영향 없음 확인 추가. §7에 신버전 클라이언트 APP_UPDATE_REQUIRED 수신 시나리오 추가. §9 "배포 순서 및 롤백" 신설(서버 선행 배포, Phase 2 정량 제거 조건). |
 | 2026-04-19 | ISS-011, ISS-009 | **아키텍처 전면 개편**: §1 개요에 설계 원칙 추가. §2 시퀀스 다이어그램을 신버전(coop/일반)+구버전 3종으로 재구성. §3 API 계약을 `/api/coupon/register`(신규 통합 단일 진입점) + `/api/coupon`(가드 추가)로 변경, `/api/coop/check`/`/api/coop/use`는 deprecated. §4에 `coupon_prefix_rule` 테이블 추가(동적 프리픽스 관리). §5 처리 로직을 1단계 원샷 플로우로 재작성(check+use 통합, S2 확인 팝업 제거). §5-4 `/api/coupon` 진입 가드 추가. §6 파트별 구현 포인트에 Phase 1 삭제/수정 대상 명시. §7 확정사항에 서버 단일 진입점/1단계/구버전 가드 추가. |
