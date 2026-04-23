@@ -7,6 +7,105 @@
 
 ---
 
+### ISS-048: design-spec §S4 "스킬 이용권 카드 렌더 분기 규칙" 내부 모순 재정의
+
+| 분류 | enhancement (스펙 정합성) |
+| 발견일 | 2026-04-24 |
+| 심각도 | P3 (현재 UX 회귀 없음, 문서 일관성 문제) |
+| 영향 파트 | /architect (스펙), Web (회귀 확인), iOS/Android (무수정 확인) |
+| 상태 | 해결 (2026-04-24) — design-spec.md §S4 상단 "스킬 이용권 카드 렌더 분기 규칙"을 2종 분기 구조로 재정의. (1) 상품 자체 식별 분기(배지·부가설명): AND. (2) 개별 속성 반응 분기(만료일: `isUnlimited` 단독 / 링크: `fixedMenuSeq != null` 단독). §S4 line 116 링크 조건 명시 추가 + 레이아웃 도식 하단 조건 안내. Changelog 1줄 추가. iOS/Android 코드 무수정(api-spec.md 규약 이미 준수). **Web 회귀 점검(2026-04-24) 결과 (B-2) "스킬 보러가기 링크 fixedMenuSeq 단독 조건" Fail** — 링크가 `CoopSkillVoucherItem`(AND 분기 내부)에서만 렌더되어 `fixedMenuSeq != null && !isUnlimited` 쿠폰에 미노출. 권장안 채택하여 `CouponItem.tsx`에 `onSkillLinkClick?` prop 추가 + 내부 `fixedMenuSeq != null && onSkillLinkClick` 단독 조건 분기, `app/coupon/page.tsx`가 주입. 하단 영역 좌(만료정보)+우(링크) space-between 재구성. `types/coupon.ts:20` 주석 갱신. 현 운영 환경 해당 쿠폰 타입 없어 QA 재현 불가, 스펙 정합성 선제 보강 — Web 2026-04-24 해결. |
+
+**현상**: design-spec.md §S4 상단(이전 line 103-104) "스킬 이용권 카드 판별 기준 (클라이언트 공통, 단일 소스) — `isUnlimited === true && fixedMenuSeq != null`. 모든 분기에 동일 기준(AND)을 사용한다" 선언이 같은 문서 하위 문장(만료일 `isUnlimited === true`이면 미표시 / 링크 노출 조건 비명시) 및 api-spec.md 계약(두 필드 독립 의미)과 모순.
+
+**재현**: design-spec.md §S4 정적 리뷰 중 `/dev-ios` 점검 보고(2026-04-24)에서 B2 항목 Fail로 포착.
+
+**출처**: `/dev-ios` 점검 턴 (2026-04-24) / `/architect` 재정의 턴 (2026-04-24).
+
+**분석 (2026-04-24 /architect)**:
+- **공통 규약의 진짜 소스는 api-spec.md**. `fixedMenuSeq`(api-spec.md:249 "단일 스킬에 고정된 쿠폰의 스킬 식별자, 존재 시 쿠폰 카드 탭 → SkillDetail 네비게이션" — 단독 조건)와 `isUnlimited`(api-spec.md:251 "유효기간 무제한, 카드 UI에서 만료일/만료임박 행 미표시 권장" — 단독 조건)는 **서로 직교한 개념**.
+- **모순의 진범**: design-spec.md §S4 line 103-104의 "모든 분기 동일 기준(AND)" 선언. ISS-040(배지 client-derive) 분석에서 "스킬 이용권 배지는 `fixedMenuSeq + isUnlimited` 조건으로 derive"라고 제안한 문구를 `/architect`가 **네 분기 전체에 과잉 일반화**한 결과.
+- **하위 문장(line 114, 116)은 api-spec.md 규약과 이미 정합**. iOS/Android 코드도 api-spec.md 규약을 따라 역사적으로 구축됨(ISS-022 만료일 = `isUnlimited` 단독, ISS-019 링크 = `fixedMenuSeq` 단독, ISS-040/041 배지·부가설명 = AND). "역사적 축적이 아니라 서버 계약 그대로 구현한 것".
+- **재정의 방향**: 두 종류 분기로 구조 분리 (spec 완화).
+  1. "상품 자체 식별" 분기(배지·부가설명): AND 유지. 사유 — "이 쿠폰이 스킬 이용권 상품이다"라는 의미론적 판단.
+  2. "개별 속성 반응" 분기(만료일·링크): 각 필드 단독 조건. 사유 — 향후 "무제한 일반 쿠폰" 또는 "스킬 지정 + 유한 만료 쿠폰" 같은 신규 타입 도입 시 각 속성이 자연스럽게 반응하도록.
+- **파트별 영향**:
+  - iOS: 코드 수정 0 (현 구현 api-spec 규약 준수, `/dev-ios` 점검으로 17/17 중 15 Pass + 1 Fail은 본 이슈로 해소 + 1 N/A는 실기기 QA).
+  - Android: 코드 수정 0 (iOS와 동일 조건 구현 확인됨, ISS-040 Android 해결 시점 기준).
+  - Web: **회귀 확인 필요** — `CoopSkillVoucherItem`·`CouponItem` 등에서 링크/만료일/배지/부가설명 조건이 본 재정의와 정합한지 `/dev-web` 점검.
+  - 서버: 영향 없음 (api-spec.md 계약 유지).
+  - QA: `qa-test-cases.md` 수정 없음 (현재 TC는 스킬 이용권 = 두 필드 모두 O 케이스만 다룸, 신규 쿠폰 타입은 본 피쳐 범위 밖).
+- **해결 방안 대안 (참고)**:
+  - (a) 스펙 강화 + 코드 정렬: AND 선언 유지, 만료일·링크 조건도 AND로 통일 (iOS/Android 4줄 수정 필요). → **기각**: 미래 확장(무제한 일반 쿠폰 등) 시 제3의 조건 추가 필요, api-spec.md의 필드 독립성 설계를 거스름.
+  - (b) 스펙 완화: 분기 2종 구조로 재정의 (코드 무수정). → **채택**.
+
+---
+
+### ISS-047: iOS — 스킬 이용권 카드 "스킬 보러가기" 링크 en/ja 번역 누락 (한글 리터럴 하드코딩)
+
+| 분류 | bug |
+| 발견일 | 2026-04-23 |
+| 심각도 | P3 |
+| 영향 파트 | iOS |
+| 상태 | iOS 해결 (2026-04-23) — ResourceKit 경유 로컬라이즈로 치환. `Modules/Common/ResourceKit/Resources/Localizable/{ko,en,ja}.lproj/Localizable.strings` 3종에 `coop_link_view_skill` 키 추가(ko "스킬 보러가기" / en "View Skill" / ja "スキルを見る" — Android `coop_link_view_skill` 값과 완전 통일). `String+Coupon.swift`의 `View` 구조체에 `skillLink` public property 신규. `CouponItemModel.swift:326`의 한글 리터럴을 `.Coupon.View.skillLink`로 교체. chevron 이미지(`skillLinkChevron`, SF Symbol)는 그대로 유지(ISS-027 정합). 수정 파일: `Localizable.strings × 3`, `String+Coupon.swift`, `CouponItemModel.swift`. |
+
+**현상**: iOS 스킬 이용권 카드의 우측 하단 "스킬 보러가기" 링크가 en/jp 디바이스에서도 **한글 원문**으로 노출됨. ISS-019(2026-04-21 iOS 해결) 구현 시 ResourceKit 로컬라이즈 테이블 경유 없이 **Swift 한글 리터럴로 하드코딩**된 결함.
+
+**재현**:
+- iOS 디바이스 설정 → 언어 → English 또는 日本語로 변경 → 앱 재실행 → 쿠폰함 진입 → 스킬 이용권 카드 우측 하단 링크 확인 → "스킬 보러가기" 한글 그대로 노출.
+- ko 디바이스는 정상 (한글 표시).
+
+**출처**: 사용자 QA 보고 (2026-04-23). ISS-019 해결분(2026-04-21) 사후 점검 과정에서 노출.
+
+**분석 (2026-04-23 /analyze)**:
+- **근본 원인**: `Hellobot/Feature/Coupon/CouponList/Views/CouponItemModel.swift:324`의 `skillLinkLabel.text = "스킬 보러가기"` 하드코딩. ResourceKit의 `AppString.Coupon.View.*` 네임스페이스를 거치지 않아 Localizable.strings(ko/en/ja) 미경유 → 모든 로케일에서 한글 노출.
+- **계약 상 문구 (api-spec.md / client-guide.md / design-spec.md)**:
+  - ko "스킬 보러가기" / en "View Skill" / ja "スキルを見る"
+  - Android `coop_link_view_skill` 3종과 완전 통일 (ISS-027 해결 시 텍스트에서 `>` 제거되어 chevron 이미지로 분리된 형태와 정합). 웹은 별도 로컬라이즈 시스템이나 동일 문구 적용 대상.
+- **해결 방안 (권장)**: 클라이언트 단독 수정. 서버/API/디자인 스펙 변경 없음.
+  1. ResourceKit `String+Coupon.swift`의 `View` 구조체에 신규 property `skillLink` 추가 (key: `coupon_skill_link` 또는 `coop_link_view_skill` — Android 키명 통일 시 `coop_link_view_skill` 권장).
+  2. `Modules/Common/ResourceKit/ResourceKit/Resources/{ko,en,ja}.lproj/Localizable.strings` 3개 파일에 신규 키 추가:
+     - ko: "스킬 보러가기"
+     - en: "View Skill"
+     - ja: "スキルを見る"
+  3. `CouponItemModel.swift:324`의 리터럴을 `skillLinkLabel.text = .Coupon.View.skillLink`로 교체.
+  4. chevron 이미지(`skillLinkChevron` SF Symbol)는 그대로 유지 — 텍스트 분리 원칙(ISS-027 정합) 고수.
+- **대안 (기각)**:
+  - (A) `Bundle.main.localizedString(forKey:, value:, table:)` 직접 호출 — ResourceKit 네임스페이스 우회, 서비스 전반의 로컬라이즈 컨벤션 위배.
+  - (B) Locale.preferredLanguages 기반 Swift switch — 서버 i18n 없이 클라 하드 분기. 3개 지원 언어 외 로케일(예: 중국어 디바이스) fallback 누락, ResourceKit의 기본 fallback 체계(en→ko)를 활용 못 함.
+- **영향 범위**: iOS 단독. Android는 이미 `coop_link_view_skill`로 ISS-019/ISS-027 해결 시 3종 대응 완료. 웹은 별도 점검 필요 (웹 파트에 회귀 확인 요청).
+- **회귀 리스크**: 낮음. 신규 로컬라이즈 키 추가 + 리터럴 1줄 교체로 완결. 기존 ko 동작 동일.
+- **문서 영향**: design-spec.md §S4 / client-guide.md §S4 해당 항목에 **3종 i18n 문구 확정 명시** 추가 (별도 선행 과업으로 /analyze가 반영). design-spec.md / client-guide.md Changelog 각각 1줄 추가.
+
+---
+
+### ISS-046: Android — 쿠폰 카드 타이틀 아래 "0하트 이상 결제 시" 문구 노출 (스킬 이용권에서도 표시됨)
+
+| 분류 | bug |
+| 발견일 | 2026-04-23 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | Android 해결 (2026-04-23) — `CouponItem.kt`에 `isSkillVoucher = coupon.isUnlimited && coupon.fixedMenuSeq != null` 판별을 Box scope 상단으로 승격(기존 ISS-040 태그 prepend 로직과 공유). description `Text`에 `Modifier.alpha(0f) + clearAndSetSemantics { }` 조건부 적용(`isSkillVoucher` 시) — 문구는 숨겨지되 카드 높이는 일반 쿠폰과 동일 유지(웹 ISS-031 invisible reserve와 정합). `clearAndSetSemantics`로 TalkBack이 빈 설명 행을 읽지 않도록 차단. iOS ISS-041은 `flex.isIncludedInLayout = false`로 collapse 채택 — 플랫폼 차이는 `/architect`가 design-spec §S4에서 통일 여부 결정 예정. 신규 import: `androidx.compose.ui.draw.alpha`, `androidx.compose.ui.semantics.clearAndSetSemantics`. 검증: `:app:assembleDevDebug` + `:app:ktlintCheck` BUILD SUCCESSFUL. |
+
+**현상**: Android 쿠폰 카드 타이틀 아래 description Text("0하트 이상 결제 시 사용 가능")가 **스킬 이용권에서도 노출됨**. 스킬 이용권(100% 할인)은 결제 금액 조건이 의미 없으므로 해당 문구는 숨겨져야 함.
+**재현**: 스킬 이용권 쿠폰(coop 91 프리픽스) 등록 → 쿠폰함 진입 → 카드 타이틀 아래 "0하트 이상 결제 시 사용 가능" 문구 확인.
+**출처**: 사용자 QA 보고 (2026-04-23). ISS-041(iOS 동일 이슈, 2026-04-22 해결)의 Android 누락분.
+
+**최종 결정 (2026-04-23 사용자 지시)**: **B안(공간 유지, `Modifier.alpha(0f)` + `clearAndSetSemantics`)** 채택 — "문구는 숨기되 공간은 유지"라는 사용자 요구 사항에 맞춰 웹 ISS-031과 동일한 invisible reserve 방식으로 결정. iOS ISS-041(collapse)과는 플랫폼 차이 잔존 → `/architect`가 통일 기준(전 플랫폼 reserve 또는 전 플랫폼 collapse) 결정 후 design-spec.md §S4 / client-guide.md §S4에 명문화 예정.
+
+**분석 (2026-04-23 Android)**:
+- **근본 원인**: `CouponItem.kt:91-98`의 `Text(text = coupon.description.get(context), …)`가 조건 없이 렌더. `description`은 `CouponData.toCouponItemModel()`(`CouponItemModel.kt:149-161, 183-194`)에서 서버 `minPurchasePrice` / `maxDiscountPrice` 값을 기반으로 `coupon_description_discount_condition`("%1$d하트 이상 결제 시 사용 가능") 또는 `coupon_description_discount_heart_description`으로 **클라이언트 derive**. 스킬 이용권은 서버가 `minPurchasePrice = 0`, `maxDiscountPrice = null`을 내려주므로 "0하트 이상 결제 시 사용 가능"이 생성되어 표시됨.
+- **판별 기준 (기존 활용)**: `CouponItem.kt:190`에 `val isSkillVoucher = coupon.isUnlimited && coupon.fixedMenuSeq != null`이 이미 존재(ISS-040 구현). 웹 `coopSkillVoucherItem.tsx`, iOS ISS-041, Android ISS-040과 동일 기준이라 **플랫폼 간 판별 기준 통일** 상태 유지 가능.
+- **해결 방안 (권장, iOS ISS-041 A안 정합)**: `CouponItem.kt:90-98`의 description 블록을 `isSkillVoucher`일 때 생략(행 collapse). `MarginSpacer(2.dp)` + `Text(description)` 두 개를 `if (!isSkillVoucher)`로 감싸거나, description Text만 조건부 렌더. 레이아웃 구조 유지·카드 높이 약간 단축. iOS `descriptionLabel.isHidden = true + flex.isIncludedInLayout = false`와 동일 결과.
+  - 보조: `isSkillVoucher` 판별 위치를 파일 상단(현재 line 190)에서 Column 상단으로 끌어올려 description 분기와 태그 prepend 로직이 동일 변수를 참조하도록 정리(가독성).
+- **대안**:
+  - (B) 웹 ISS-031 방식 준용 — Text `alpha(0f)` 또는 invisible placeholder로 공간 유지. 카드 높이 일치 장점. 그러나 iOS는 이미 collapse로 구현되어 있어 **플랫폼 간 불일치 심화**. 통일 기준이 design-spec에 명시될 때까지는 iOS와 정합하는 A안이 보수적.
+  - (C) `CouponItemModel.kt` 변환부에서 `isUnlimited` 시 description을 `TextString("")` / 빈 StringModel 반환 — Text는 렌더되나 공백. **모델 레이어가 "표시 여부" 결정에 개입**하므로 단점(설계 혼선, 재사용 시 예측 불가).
+- **영향 범위**: Android 단독. 서버 응답·DTO 변경 없음. 디자인 스펙 변경 없음(반영 제안만). 기존 `description` 프로퍼티 유지.
+- **회귀 리스크**: 낮음. `isSkillVoucher` 판별은 이미 ISS-040에서 운영 중이며 스킬 이용권 외 일반 쿠폰 동작은 변경 없음. 카드 Column 높이가 스킬 이용권에 한해 감소하나 `wrapContentHeight` 기반이라 LazyColumn 내 다른 항목에 영향 없음.
+- **스펙 제안 (`/architect`에 연계)**: ISS-041에 이미 "design-spec.md §S4에 'isUnlimited 시 부가 설명 행 미표시' 명시 요청"이 제안됨. 본 이슈와 동일 건이므로 별도 제안 없이 ISS-041 제안에 Android도 함께 포함시키면 충분. collapse vs reserve 통일 여부도 함께 결정 요청.
+
+---
+
 ### ISS-045: Android — 서버 `error.message` 누락/공백 시 에러 토스트 미노출 (Generic 폴백 필요)
 
 | 분류 | enhancement |
@@ -198,7 +297,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | iOS |
-| 상태 | 해결 (2026-04-22) — `CouponItemCell.bind()`에서 스킬 이용권 판별(`coupon.fixedMenuSeq != nil && coupon.isUnlimited == true`) 시 `descriptionLabel.isHidden = true` + `flex.isIncludedInLayout = false`로 행 collapse. ISS-031(웹) "subtext 영역 공간 유지"는 iOS design-spec 미명시라 현재 collapse 채택 — 필요 시 `/architect`에 "isUnlimited 시 부가설명 행 처리 확정" 요청. |
+| 상태 | 해결 (2026-04-23, 재조정) — (초기 2026-04-22: `descriptionLabel.isHidden = true` + `flex.isIncludedInLayout = false`로 행 collapse). 사용자 QA 피드백(2026-04-23) "동일한 높이에 문구만 안보이는 형태"로 방향 전환 → **reserve 전략**으로 재구현: `descriptionLabel.isHidden = true`만 유지, `flex.isIncludedInLayout = false` 라인 제거. 웹 ISS-031 reserve 방식과 정합. 카드 전체 높이는 일반 쿠폰과 동일 유지 + 문구만 숨김. 수정 파일: `CouponItemModel.swift`. |
 
 **현상**: iOS 쿠폰 카드 타이틀 아래에 "0하트 이상 결제 시" 문구가 노출됨. 스킬 이용권(100% 할인 쿠폰)은 결제 금액 조건이 없으므로 해당 문구는 숨겨져야 함.
 **재현**: D-007 케이스.
@@ -214,7 +313,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P2 |
 | 영향 파트 | iOS, Android |
-| 상태 | Android 해결 (2026-04-22) — `CouponItem.kt` 우상단 태그 Row에 스킬 이용권 client-derive 로직 추가. 판별 기준 `coupon.isUnlimited && coupon.fixedMenuSeq != null` (기존 하단 링크/만료일 분기와 동일). 기존 `R.string.coop_label_voucher`(ko/ja/en 3언어 보유) 재사용. 서버 `tags`에 이미 "이용권"이 포함된 경우 중복 노출 방지 가드 포함. iOS는 미해결. |
+| 상태 | Android 해결 (2026-04-22) + iOS 해결 (2026-04-23) — iOS는 `CouponItemCell.bind()`의 tags 렌더 직전에 `effectiveTags` 파생(`isSkillVoucher && !coupon.tags.contains(voucherTag)` 조건에서 로컬라이즈된 "이용권"을 prepend). 신규 `coop_label_voucher` 키(ko "이용권" / en "Voucher" / ja "利用券" — Android `coop_label_voucher` 값과 완전 통일)를 `Modules/Common/ResourceKit/Resources/Localizable/{ko,en,ja}.lproj/Localizable.strings`에 추가. `String+Coupon.swift`의 `View` 구조체에 `skillVoucherTag` public property 신규. 판별 기준 `coupon.fixedMenuSeq != nil && coupon.isUnlimited == true`는 Android/웹과 동일. 서버 `tags`에 이미 "이용권"(로케일별 동일 값)이 포함된 경우 중복 노출 방지 가드 포함. 수정 파일: `Localizable.strings × 3`, `String+Coupon.swift`, `CouponItemModel.swift`. |
 
 **현상**: iOS + Android 앱에서 스킬 이용권 카드 우측 상단의 '이용권' 라벨이 노출되지 않음. Web Chrome에서는 정상 노출됨 — 클라이언트 렌더링 분기 누락으로 추정.
 **재현**: D-001 케이스.
@@ -496,7 +595,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P2 |
 | 영향 파트 | 웹 (앱 확인 필요) |
-| 상태 | 미해결 |
+| 상태 | 웹 해결 (2026-04-23) — 분석 결론 재해석: 본 이슈는 "사용 후 탈락"이 아닌 **"카드 본문에 productName 기반 `{value} 이용권` 템플릿이 `productName`에 이미 포함된 '이용권' 접미사와 중복 노출되는 현상"**임이 QA 실기 재검증에서 드러남(사용자 보고 "쿠폰명 + '이용권' 추가로 붙음, 스킬명만 표시해야 함"). `CoopSkillVoucherItem`의 `t('coop_skill_voucher_name', { value: data.productName })`를 제거하고 `{data.skillName}`만 노출로 전환. 번역 키 `coop_skill_voucher_name` ko/ja/en 3종도 dead key라 함께 제거. 우측 상단 `coop_skill_voucher_badge`("이용권")는 유지되어 카드 전체로 보면 이용권 구분 여전히 명확. `/api/coupon` 응답 서버 형식(`coupon.name`)은 무변동 — page.tsx가 `{ productName: coupon.name, skillName: coupon.name }`로 넘기고 있어 렌더 경로 통일. |
 
 **현상**: 스킬이용권 사용 후 뒤로가기 버튼으로 쿠폰함 복귀 시 "스킬명 + 이용권" 형태였던 쿠폰 이름이 "스킬명"으로 바뀌어 표시됨. 즉, "이용권" 접미사가 사라짐. ISS-036(사용 쿠폰이 목록에 남는 문제)과 같은 재현 경로에서 발견됨.
 **재현**: 스킬이용권 쿠폰 등록 → 쿠폰 선택 → 대화방 진입 → 0원 결제 → 인트로 시작 → 뒤로가기로 대화방 이탈 → 쿠폰함 유지 → 사용 쿠폰 이름 변경 확인.
@@ -530,7 +629,7 @@
 | 발견일 | 2026-04-22 |
 | 심각도 | P3 |
 | 영향 파트 | 웹, iOS, Android (확인 필요) |
-| 상태 | iOS 해결 (2026-04-22) — `CouponListViewController.handleRegisterResponse(_:)` `.coupon` 분기에 `showCouponToast(.Coupon.Register.successToast)` 추가. 신규 로컬라이즈 `coupon_register_success_toast` ko/en/jp 등록(Android 문구와 통일). 스킬 성공 토스트도 `.Coupon.Register.skillSuccessToast`로 분리(문자열 리터럴 제거). 호출은 ISS-038 공용 `showCouponToast(_:)` 경유. 웹/Android는 미해결. |
+| 상태 | iOS 해결 (2026-04-22) — `CouponListViewController.handleRegisterResponse(_:)` `.coupon` 분기에 `showCouponToast(.Coupon.Register.successToast)` 추가. 신규 로컬라이즈 `coupon_register_success_toast` ko/en/jp 등록(Android 문구와 통일). 스킬 성공 토스트도 `.Coupon.Register.skillSuccessToast`로 분리(문자열 리터럴 제거). 호출은 ISS-038 공용 `showCouponToast(_:)` 경유. / 웹 해결 (2026-04-23) — `couponCodeRegister.tsx` `handleRegister`의 `case 'coupon':` 분기에 `dispatch(setToastMessage(t('coupon_register_success_toast')))` 추가. 번역 키 `coupon_register_success_toast` ko/ja/en 3종 신규(iOS와 동일 키/문구: ko "쿠폰이 등록되었어요", ja "クーポンが登録されました", en "Coupon has been registered"). heart 분기는 S3 완료 팝업, skill 분기는 기존 `coop_skill_complete_toast` 유지. Android는 미해결. |
 
 **현상**: 일반(기존) 쿠폰이 성공적으로 등록되었을 때 확인 토스트가 노출되지 않음. 이전 쿠폰 기획에 포함되어 있었으나 구현이 누락된 것으로 보임. ISS-020 기준 스킬 이용권 등록 시 토스트는 노출됨 — 일반 쿠폰 플로우만 누락.
 **재현**: A-001 케이스.
@@ -664,7 +763,7 @@
 | 발견일 | 2026-04-21 |
 | 심각도 | P3 |
 | 영향 파트 | iOS, Android |
-| 상태 | Android 해결 (2026-04-22) — `CouponListActivity.CoopEvent.NavigateToLogin` 분기를 호출 측 선표시 방식으로 전환. `SafeToast.showToastForDurationMs(ctx, R.string.common_toast_plz_login, COOP_TOAST_DURATION_MS)` 호출 후 `SignupActivity.enterForResult(activity, null, "coop_coupon_input")`로 Intent extra 토스트는 null 전달(중복 회피). / iOS 해결 (2026-04-22) — `CouponListViewController`의 editingDidBegin 핸들러와 `sendCouponCode()` 미로그인 가드 2개 `presentSingup()` 호출부에 `AppString.toastPlzLogin` 인자 전달 → `goSignupModal(message:)`가 로그인 화면 전환 시 안내 토스트 노출. client-guide.md S6 "로그인 화면 전환 시 안내 토스트 1회 노출" 명시 추가는 `/architect` 대기. |
+| 상태 | Android 해결 (2026-04-22) — `CouponListActivity.CoopEvent.NavigateToLogin` 분기를 호출 측 선표시 방식으로 전환. `SafeToast.showToastForDurationMs(ctx, R.string.common_toast_plz_login, COOP_TOAST_DURATION_MS)` 호출 후 `SignupActivity.enterForResult(activity, null, "coop_coupon_input")`로 Intent extra 토스트는 null 전달(중복 회피). / iOS 해결 (2026-04-22) — `CouponListViewController`의 editingDidBegin 핸들러와 `sendCouponCode()` 미로그인 가드 2개 `presentSingup()` 호출부에 `AppString.toastPlzLogin` 인자 전달 → `goSignupModal(message:)`가 로그인 화면 전환 시 안내 토스트 노출. client-guide.md S6 "로그인 화면 전환 시 안내 토스트 1회 노출" 명시 추가는 `/architect` 대기. / 웹 해결 (2026-04-23) — `couponCodeRegister.tsx`의 `handleInputFocus`(입력창 포커스)와 `handleRegister`(미로그인 상태에서 등록 버튼) 두 분기에 `dispatch(setToastMessage(t('common_toast_plz_login')))` 선행 디스패치 후 `goToLogin('?fallbackUrl=/coupon')` 호출. 번역 키 `common_toast_plz_login`는 ko/ja/en 기존 보유로 추가 작업 없음. iOS/Android/Web 플랫폼 UX 일원화 완료. |
 
 **현상**: 미로그인 상태에서 쿠폰 입력창 포커스 시 화면 전환(goToLogin) 과정에 '로그인이 필요합니다' 토스트가 노출되어야 하는데 미노출. 웹은 ISS-002/007을 통해 해결된 케이스의 앱 동등 적용 건.
 **기대**: 입력창 포커스 시 로그인 화면으로 이동하면서 안내 토스트 표시.

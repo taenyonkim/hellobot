@@ -268,7 +268,8 @@
 > **즉시 착수 5건 구현 (2026-04-22)**: ISS-030/033/035/038/041 일괄 구현 완료.
 > **결정 수령분 1건 구현 (2026-04-22)**: ISS-042 — 스피너 없이 disable + 회색만 구현(디자인 결정 반영).
 > **서버 배포 후속 1건 구현 (2026-04-23)**: ISS-039 — `CouponRegisterErrorMapper` 판정 완화(서버 non-empty 값 그대로, 빈 문자열만 폴백). 서버 ja/en 배포(2026-04-23 ISS-044 포함) 확인 후 착수.
-> **선결 대기 2건**: ISS-036(iOS 앱 실기기 재현 확인), ISS-040(dev 서버 `/api/coupon` tags 응답 확인).
+> **2026-04-23 추가 QA 피드백 3건 일괄 구현**: ISS-040(이용권 배지 client-derive) + ISS-041 재조정(collapse → reserve) + ISS-047(스킬 보러가기 en/ja 번역) — 동일 `CouponItemModel.swift` + ResourceKit 3개 Localizable.strings에서 함께 처리.
+> **선결 대기 1건**: ISS-036(iOS 앱 실기기 재현 확인).
 
 - [x] ISS-030 (iOS): `CouponListViewController`의 `editingDidBegin`/`sendCouponCode()` 2개 `presentSingup()` 호출부에 `AppString.toastPlzLogin` 전달 → `goSignupModal` 토스트 경로 활성화 — 2026-04-22 해결
 - [x] ISS-033 (iOS): `handleRegisterResponse(_:)` `.coupon` 분기에 `showCouponToast(.Coupon.Register.successToast)` 추가 + 로컬라이즈 `coupon_register_success_toast` ko/en/jp 신규 (Android 문구와 통일). 스킬 성공 토스트도 `.Coupon.Register.skillSuccessToast`로 분리 — 2026-04-22 해결
@@ -276,9 +277,11 @@
 - [ ] ISS-036 (iOS): 스킬이용권 사용 후 대화방 뒤로가기 시 쿠폰함 갱신 — **iOS 앱 실기기 재현 확인 선결** (정적 분석상 viewWillAppear→refreshCoupon 바인딩 기존재로 미재현 가능성 높음). 재현 확인 후 결정
 - [x] ISS-038 (iOS): `CouponListViewController.showCouponToast(_:)` 헬퍼 신설 → `Toast(text:, config: ToastConfig(displayTime: 2.5)).show()`. 레거시 `showToast(msg:)` 2개 호출부 + ISS-033 신규 호출을 일원화 — 2026-04-22 해결
 - [x] ISS-039 (iOS): `CouponRegisterErrorMapper.resolve()` / `ReasonServerError` 경로에서 `containsHangul` 게이트 제거 → 서버 non-empty 값 그대로 사용, 빈 문자열만 `codeMessages[code]` 폴백. `nonEmpty(_:)` 헬퍼 도입으로 trim/empty 가드 통일. `codeMessages` 테이블은 safety net으로 존속(빈 응답·신규 에러코드 미지원 시 최후 방어선). 서버 ja/en 배포(2026-04-23 ISS-044 포함) 확인 후 착수 — 2026-04-23 해결
-- [ ] ISS-040 (iOS): 스킬 이용권 카드 우측 상단 '이용권' 라벨 노출 — **dev 서버 `/api/coupon` 응답 tags 내용 선확인**. 빈 배열 반환 시 클라이언트 측 derive(`fixedMenuSeq + isUnlimited` 조건), 이미 포함 시 렌더 버그 재조사
-- [x] ISS-041 (iOS): `CouponItemCell.bind()`에서 스킬 이용권(`fixedMenuSeq != nil && isUnlimited == true`) 시 `descriptionLabel.isHidden = true` + flex collapse로 "0하트 이상 결제 시" 문구 행 제거 — 2026-04-22 해결
+- [x] ISS-040 (iOS): 스킬 이용권 카드 우상단 "이용권" 배지 클라이언트 derive 구현 — `CouponItemCell.bind()`의 tags 렌더 직전 `effectiveTags` 파생(`isSkillVoucher && !coupon.tags.contains(voucherTag)` 조건에서 prepend). ResourceKit 3개 Localizable.strings에 `coop_label_voucher` 키 추가(ko "이용권" / en "Voucher" / ja "利用券" — Android 통일). `String+Coupon.swift` `View.skillVoucherTag` property 신규. 서버 tags에 이미 "이용권" 포함 시 중복 노출 방지 가드 포함 — 2026-04-23 해결
+- [x] ISS-041 (iOS): `CouponItemCell.bind()`에서 스킬 이용권(`fixedMenuSeq != nil && isUnlimited == true`) 시 "0하트 이상 결제 시" 문구 숨김 — (초기 2026-04-22: `isHidden = true` + `flex.isIncludedInLayout = false`로 행 collapse). **2026-04-23 재조정**: 사용자 QA 피드백으로 reserve 방식 전환 → `flex.isIncludedInLayout = false` 라인 제거, `isHidden = true`만 유지. 카드 전체 높이는 일반 쿠폰과 동일 유지 + 문구만 숨김(웹 ISS-031 reserve 전략 정합)
 - [x] ISS-042 (iOS): 쿠폰 등록 버튼 탭 시 비활성화 + 회색 표시 — `CouponInputFieldView`에 `isInputFilledRelay`/`isRegisteringRelay` BehaviorRelay 2개 도입, `setupContext()` combineLatest(`filled && !registering`) → `sendButton.rx.isEnabled`. 회색은 기존 disabled 토큰(gray400/gray200) 재사용. `CouponListViewController.registerCoupon(code:)` `.do(onSubscribe:/onDispose:)` 훅으로 성공/실패/취소 모든 경로에서 리셋 보장. 스피너/GIF/오버레이 미도입 — 2026-04-22 해결
+- [x] ISS-047 (iOS): 스킬 이용권 카드 "스킬 보러가기" 링크 en/ja 번역 반영 — `CouponItemModel.swift`의 한글 리터럴 `"스킬 보러가기"`를 ResourceKit 경유(`String.Coupon.View.skillLink`)로 치환. `String+Coupon.swift`의 `View` 구조체에 `skillLink` public property 추가(key: `coop_link_view_skill`) + `Modules/Common/ResourceKit/Resources/Localizable/{ko,en,ja}.lproj/Localizable.strings` 3종에 키 추가(ko "스킬 보러가기" / en "View Skill" / ja "スキルを見る" — Android `coop_link_view_skill`와 완전 통일, ISS-027 해결 시 `>` 제거 정합). chevron 이미지(`skillLinkChevron`, SF Symbol)는 그대로 유지 — 2026-04-23 해결
+- [x] ISS-048 (iOS): `/architect` design-spec §S4 "스킬 이용권 카드 렌더 분기 규칙" 재정의(2026-04-24) 사후 점검 — `/dev-ios` 정적 점검 결과 17/17 항목 중 15 Pass, 1 Fail(B2, 단일 기준 모순)은 본 이슈 재정의로 해소, 1 N/A(G1, 실기기 QA). iOS 현 구현(ISS-019/022 단독 조건 + ISS-040/041 AND)이 api-spec.md 규약 및 재정의된 2종 분기 구조와 **이미 정합** → **코드 수정 없음**. 리포 status.md 결정 로그에 재정의 반영 메모 1줄 기록 — 2026-04-24 확인 완료
 
 ### Android (/dev-android)
 
@@ -297,15 +300,21 @@
 **ISS-039 — 서버 의존, Android 코드 수정 없음**
 - [ ] ISS-039 (Android, 무코드): 서버 `src/locales/en.ts` / `src/locales/ja.ts` `CO_APP_UPDATE_REQUIRED` 번역 배포 후 **QA 회귀 확인**만 수행. Android `strings.xml` 추가/클라이언트 폴백 추가하지 않음(2026-04-22 결정). 서버 배포 지연되거나 회귀 표면화 시 별도 enhancement로 분리
 
+**Step 3 — 사용자 QA 재보고 (1건)**
+- [x] ISS-046 (Android): 스킬 이용권 카드에서 "0하트 이상 결제 시 사용 가능" description 노출 제거 (공간은 reserve) — `CouponItem.kt`에서 `isSkillVoucher = coupon.isUnlimited && coupon.fixedMenuSeq != null` 판별을 Box scope 상단으로 승격(ISS-040 태그 prepend 로직과 공유). description `Text`에 `Modifier.alpha(0f) + clearAndSetSemantics { }`를 조건부 체이닝 — 문구는 투명 처리되나 측정/높이는 유지되어 **카드 높이는 일반 쿠폰과 동일**. 웹 ISS-031 invisible reserve와 정합, iOS ISS-041 collapse와는 플랫폼 차이 잔존(`/architect` design-spec §S4 통일 결정 대기). 신규 import 2건(`androidx.compose.ui.draw.alpha`, `androidx.compose.ui.semantics.clearAndSetSemantics`). 검증 `:app:assembleDevDebug` + `:app:ktlintCheck` BUILD SUCCESSFUL (2026-04-23)
+- [x] ISS-048 (Android 확인): `/architect` design-spec §S4 "스킬 이용권 카드 렌더 분기 규칙" 재정의(2026-04-24) 사후 확인 — `/dev-android` 정적 점검 결과 **4/4 Pass**. `CouponItem.kt`에서 분기 A(AND)는 `isSkillVoucher = coupon.isUnlimited && coupon.fixedMenuSeq != null`(line 71)을 배지(line 202) + 부가설명(line 107-108)이 공유. 분기 B(단독)는 `hasBottomLeft = !coupon.isUnlimited`(line 114, 만료일 단독) + `hasBottomRight = coupon.fixedMenuSeq != null`(line 115, 링크 단독)로 각 필드 독립 조건 사용. **코드 수정 없음** — 재정의된 2종 분기 구조와 이미 완전 정합. 리포 status.md 결정 로그에 메모 1줄 기록 (2026-04-24 확인 완료)
+
 ### 웹 (/dev-web)
 - [x] ISS-031 (웹): `CoopSkillVoucherItem`을 `CouponItem`과 동일 수직 리듬(`mb-[2px]` + 서브텍스트 `invisible` reserve + `my-[12px]` 점선 + `leading-[18px]` 하단 링크)으로 재구성. 외부 `<li>` min-height 없이 내부 reserve만으로 카드 높이 일치 — 2026-04-22 해결
 - [x] ISS-032 (웹): `CoopSkillVoucherItem` 화살표를 인라인 SVG(`fill="#BE7AFE"`)로 교체 — 2026-04-22 해결
-- [ ] ISS-033 (웹): 일반 쿠폰 등록 성공 토스트 노출 — **`/architect` client-guide.md S4 문구 스펙 확정 + 번역 키 ko/ja/en 확정 후 착수**
-- [ ] ISS-034 (웹): 스킬이용권 사용 후 쿠폰 이름 접미사 유지 — ISS-036 해결로 자연 소멸 예상, **QA 재검증 대기**. 재현 시에만 `isSkillVoucher` 필터 보강
+- [x] ISS-033 (웹): 일반 쿠폰 등록 성공 토스트 노출 — `couponCodeRegister.tsx` `case 'coupon':` 분기에 `dispatch(setToastMessage(t('coupon_register_success_toast')))` 추가. 번역 키 `coupon_register_success_toast` ko/ja/en 3종 신규 (iOS와 동일 키/문구). 2026-04-23 해결
+- [x] ISS-034 (웹): 스킬 이용권 카드 쿠폰명 중복 제거 — QA 실기 재검증에서 "쿠폰명 + '이용권' 중복 노출"이 실제 원인으로 확인됨(사용 후 접미사 탈락 아님). `CoopSkillVoucherItem`의 `t('coop_skill_voucher_name', { value: productName })`(" 이용권" 접미사 부착) 제거 후 `{data.skillName}`만 렌더. dead key `coop_skill_voucher_name` 3개 언어 파일 함께 삭제. 우측 상단 `coop_skill_voucher_badge`("이용권") 유지로 이용권 구분은 여전히 명확. 2026-04-23 해결
+- [x] ISS-030 (웹): 미로그인 상태에서 쿠폰 입력창 포커스/등록 시 안내 토스트 노출 — `couponCodeRegister.tsx` `handleInputFocus`/`handleRegister` 두 분기에 `dispatch(setToastMessage(t('common_toast_plz_login')))` 선행 디스패치 후 `goToLogin('?fallbackUrl=/coupon')` 호출. iOS(ISS-030 iOS)/Android(ISS-030 Android) 해결과 동일 UX. 번역 키 기존 보유 재사용. 2026-04-23 해결
 - [x] ISS-035 (웹): `coopHeartCompletePopup.tsx`의 정적 PNG(`/images/coop/img_heart_complete.png`) + Next.js `<Image>`를 기존 프로젝트 자산 `/images/heart/heart_charge.gif`(`BonusHeartModal`에서 이미 사용 중, 1184×576) + plain `<img>`로 교체. `?t={mountTimestamp}` 캐시 버스터(`useMemo([])`)로 마운트 1회 재생. `-mx-[24px] w-[288px] h-[140px]`로 padding 밖 확장, 원본 비율 유지. 신규 자산 발급 없음 — 2026-04-22 해결
 - [x] ISS-036 (웹): `app/coupon/page.tsx`에 `pageshow` 훅 추가, `persisted=true`일 때 `mutate('/api/coupon')`로 재검증. 서버가 used voucher를 응답에서 자동 제외하므로 재조회만으로 해소 — 2026-04-22 해결
 - [x] ISS-037 (웹): `CoopSkillVoucherItem` "이용권" 라벨을 `CouponItem` 태그 스타일(`px-[6px]`/`rounded-full`/gray)과 통일. 첫 행 flex `justify-between` 구조로 변경 — 2026-04-22 해결
 - [x] ISS-042 (웹): `couponCodeRegister.tsx` 버튼 내부에 `animate-spin` 인라인 스피너 추가, 풀스크린 `<Loading />` 제거, `aria-busy`/`aria-label` 보강 — 2026-04-22 해결
+- [x] ISS-048 (웹 회귀 확인 + 코드 수정): design-spec §S4 재정의(2026-04-24) 점검 결과 3/4 Pass, (B-2) "스킬 보러가기 링크 `fixedMenuSeq` 단독 조건"이 Fail — 현재 링크는 `CoopSkillVoucherItem`(AND 분기 내부)에서만 렌더되어 `fixedMenuSeq != null && !isUnlimited`("스킬 지정 + 유한 만료") 쿠폰에 링크 미노출. **권장안 채택** — `CouponItem.tsx`에 optional prop `onSkillLinkClick?: (fixedMenuSeq) => void` 추가, 내부에서 `coupon.fixedMenuSeq != null && onSkillLinkClick`일 때 하단 우측 링크 렌더(`CoopSkillVoucherItem`과 동일 inline SVG chevron + `coop_skill_voucher_link` 키 재사용). `app/coupon/page.tsx`에서 `<CouponItem onSkillLinkClick={handleSkillVoucherClick} />` 주입. `types/coupon.ts:20` 주석을 "웹은 미사용" → ISS-048 조건 명시로 갱신. 하단 영역은 좌(만료정보 단독)+우(링크 단독) `space-between` flex, 둘 다 없으면 점선 구분선 포함 블록 전체 미렌더. 향후 "스킬 지정 + 유한 만료" 쿠폰 도입 시 선제 대응. 현 운영 환경 서버 응답에는 해당 쿠폰 타입 없어 QA 재현 불가, 스펙 정합성 선제 보강 — 2026-04-24 해결
 
 ### 진행 방식
 1. **분석 단계** (현재): 각 파트 에이전트(`/dev-server`, `/dev-ios`, `/dev-android`, `/dev-web`)가 담당 이슈를 하나씩 검토 → issues.md 해당 항목 하단에 `**분석 (yyyy-mm-dd 파트)**` 블록으로 근본 원인·해결 방안·영향 범위·예상 리스크 기록
