@@ -31,7 +31,7 @@
 | 웹 | Phase 1 완료 (QA 대응 진행) | feat/coop-integration | worktrees/hellobot-web/ | Phase 1 전환 완료 (04-19~20). ISS-017 해결 (04-19). ISS-016/022/025 해결 (04-21). ISS-031/032/035/036/037/042 해결 (04-22). **ISS-030/033/034 해결 (04-23)**. **ISS-048 해결 (04-24)** — `CouponItem`에 `fixedMenuSeq` 단독 조건 스킬 링크 분기 추가로 재정의된 2종 분기 구조 정합. 잔여: 없음 |
 | 스튜디오 | 해당없음 | - | - | |
 | 데이터 | 설계 초안 완료 | - | - | 2026-04-22 [planning/performance-analysis-design.md](planning/performance-analysis-design.md) 작성 — 이벤트 3종 스펙, `mart_coop_coupon_usage` 신규, `union_mart_user_key_actions.funnel_from_coop_coupon` 태깅, report 마트 2종, SQL 템플릿 5종, 외부 확인 8건. 서버 Phase 1 프로덕션 배포 후 착수 가능 |
-| QA | Step A 완료 (플랫폼별 재편성, 검증 대기) | - | - | 145건 (폐기 63건 제거 후). 플랫폼별 재편성 (Web 44, iOS 20, AOS 20, Admin·Server 47 + Skip 2). xlsx v5 생성 (5 시트: Web, iOS, Android, Admin·Server, 요약). TC ID 체계 변경 (TC-W-*, TC-I-*, TC-A-*, P1-*, TC-M*/N*/A*-DEP). 이전 버전 v4 감사 추적 보존. Step B 검증 대기 |
+| QA | Step A 완료 (플랫폼별 재편성, 검증 대기) | - | - | 145건 (폐기 63건 제거 후). 플랫폼별 재편성 (Web 44, iOS 20, AOS 20, Admin·Server 47 + Skip 2). xlsx v5 생성 (5 시트: Web, iOS, Android, Admin·Server, 요약). TC ID 체계 변경 (TC-W-*, TC-I-*, TC-A-*, P1-*, TC-M*/N*/A*-DEP). 이전 버전 v4 감사 추적 보존. v11 생성 (04-21 보강 7건, 총 152건). **v12 생성 (ISS-048 반영, 156건)** — Flow V에 TC-V-BR01~04 4건 추가(2종 분기 매트릭스), 기존 UL/S/D TC에 판정 기준 명시. Step B 검증 대기 |
 
 ## 잔여 과업 요약
 

@@ -136,19 +136,32 @@ Content-Type: application/json
 3. 토스트: "스킬 이용권이 등록되었어요" (2.5초 후 자동 사라짐)
 4. 헤더 쿠폰 수 +1 업데이트
 
-**스킬 이용권 카드 판별 기준 (클라이언트 공통)**
+**스킬 이용권 카드 렌더 분기 규칙 (클라이언트 공통, 2026-04-24 ISS-048 재정의)**
 
-`GET /api/coupon` 응답의 `coupon.isUnlimited === true && coupon.fixedMenuSeq != null`. 배지, "스킬 보러가기" 링크, 만료일 숨김, 부가 설명 숨김 등 스킬 이용권 전용 분기는 **모두 이 동일 기준**을 사용한다. 둘 중 하나만 참조하면 향후 타입 확장 시 오판 위험이 있으므로 두 조건을 함께 확인할 것.
+api-spec.md는 `GET /api/coupon` 응답의 `fixedMenuSeq`(단일 스킬 식별자, api-spec.md:249)와 `isUnlimited`(유효기간 무제한, api-spec.md:251) 두 필드를 **의미적으로 독립(orthogonal)**하도록 정의한다. 따라서 스킬 이용권 카드의 분기는 **두 종류로 나누어 적용**한다 (design-spec.md §S4와 정합):
 
-**스킬 이용권 카드**:
-- 라벨: "이용권" 태그 (회색, 흰 배경)
+1. **"스킬 이용권 상품 자체를 식별"하는 분기** — 판별 기준 `isUnlimited === true && fixedMenuSeq != null` (**AND**)
+   - **"이용권" 배지 노출** (ISS-040)
+   - **부가 설명 행 숨김 (invisible reserve)** (ISS-041/046)
+   - 사유: "이 쿠폰이 스킬 이용권 상품 그 자체다"라는 의미론적 판단에 두 속성 모두 필요
+
+2. **"개별 필드 속성에 반응"하는 분기** — 각 필드 **단독 조건** (api-spec.md 적용 규칙 §247-258 준수)
+   - **만료일 / 만료임박 숨김**: `isUnlimited === true` 단독 (ISS-021/022) — 향후 "무제한 일반 쿠폰" 도입 시에도 자연 반응
+   - **"스킬 보러가기" 링크 노출**: `fixedMenuSeq != null` 단독 (ISS-019/024/048) — 향후 "스킬 지정 + 유한 만료" 쿠폰 도입 시에도 스킬 상세 숏컷 유지
+
+> ⚠️ 과거(~2026-04-23) "모든 분기 동일 기준(AND)" 서술은 ISS-040 배지 derive 문구의 과잉 일반화였으며, api-spec.md의 필드 독립성 계약과 모순이라 폐기. iOS/Android는 api-spec 규약 기반 구현으로 이미 정합, Web은 ISS-048로 `CouponItem`에 링크 단독 조건 분기 추가 완료(2026-04-24).
+
+**스킬 이용권 카드 구성 요소**:
+- 라벨: "이용권" 태그 — 회색, 흰 배경 (분기 1, AND)
 - 할인율: "100%" (분홍 강조)
 - 쿠폰명: 응답의 `skillName`
 - 챗봇명: 미노출
-- **부가 설명 행 (`description`)**: "N하트 이상 결제 시 사용 가능" 문구 자체가 의미 없으므로 **invisible reserve** — 시각적으로 숨기되 레이아웃 공간은 유지. 일반 쿠폰 카드와 동일 높이/수직 리듬. 스크린리더(TalkBack/VoiceOver)는 해당 행을 **읽지 않아야 함** (ISS-041/046, 2026-04-24 스펙 확정)
-- 링크: "스킬 보러가기 >" (보라색, **하단 우측 정렬** — ISS-023)
+- **부가 설명 행 (`description`)**: "N하트 이상 결제 시 사용 가능" 문구 자체가 의미 없으므로 **invisible reserve** — 시각적으로 숨기되 레이아웃 공간은 유지. 일반 쿠폰 카드와 동일 높이/수직 리듬. 스크린리더(TalkBack/VoiceOver)는 해당 행을 **읽지 않아야 함** (ISS-041/046, 분기 1 AND)
+- 링크: "스킬 보러가기" (보라색, **하단 우측 정렬** — ISS-023)
+  - **노출 조건**: `fixedMenuSeq != null` **단독** (분기 2, `isUnlimited`와 무관 — ISS-048 정합)
   - **i18n 문구 (ISS-047 확정)**: ko "스킬 보러가기" / en "View Skill" / ja "スキルを見る"
   - `>`는 **텍스트에 포함하지 않음** — chevron 이미지(iOS `SF Symbol chevron.right`, Android/Web 대응 벡터, violet400 틴트)로 분리 렌더 (ISS-027 해결 정합)
+  - 선택 모드(iOS CouponSelect 등) 화면에서는 노출 억제
 - 카드 탭 또는 링크 탭 → 스킬 상세 페이지 이동 (`fixedMenuSeq` 사용)
 
 **부가 설명 행 구현 가이드 (invisible reserve, 플랫폼별)**
@@ -161,10 +174,11 @@ Content-Type: application/json
 
 > ⚠️ **`display: none` / `flex.isIncludedInLayout = false` (collapse) 방식 금지**. 카드 높이가 축소되어 쿠폰함에서 일반 쿠폰과 섞여 렌더 시 수직 리듬이 어긋남. iOS ISS-041에서 한시적으로 collapse 방식이 적용되었으나 2026-04-23 재조정으로 reserve 전환 완료 (본 스펙과 정합).
 
-**만료일/만료임박 표시 분기 (ISS-021/022)** — 스킬 이용권 및 향후 무제한 쿠폰에 공통 적용:
+**만료일/만료임박 표시 분기 (ISS-021/022, ISS-048 정합)** — `isUnlimited` **단독** 조건으로 판정 (분기 2, 개별 속성 반응):
 - `GET /api/coupon` 응답 `coupon.isUnlimited === true`이면 카드에서 **만료일 행 + 만료임박 "N일 남음" 뱃지 모두 미표시** (점선 구분선도 숨김 권장)
 - `isUnlimited`가 없거나 `false`이면 기존 일반 쿠폰 UI 유지 (만료일 + `remainDays < 6` 시 만료임박 배지)
 - ⚠️ **sentinel 문자열(`2099-12-31T23:59:59.000Z`) 직접 비교 금지** — 추후 sentinel 값이 변경될 수 있으므로 반드시 `isUnlimited` 플래그로만 분기할 것
+- `fixedMenuSeq`와 결합 판정하지 않음 — 향후 "무제한 일반 쿠폰"(스킬 지정 없음)이 도입되어도 만료일이 자연스럽게 숨겨지도록 한다
 - 참고: 스킬 이용권은 발급 시 서버가 `isUnlimited: true`를 내려주며, `expiresAt`은 호환성 확보 위한 sentinel 날짜 값임 (null 아님)
 
 ### 일반 쿠폰 발급 완료
@@ -307,7 +321,8 @@ POST /api/coupon/register (단일 호출, 서버가 종류 분류)
 
 | 날짜 | 변경자 | 변경 내용 | 확인 |
 |------|--------|----------|------|
-| 2026-04-24 | /architect | **S4 스킬 이용권 카드 판별 기준 + 부가 설명 행 처리 규칙 명문화 (ISS-041/046 정합)**: (1) §S4에 "스킬 이용권 카드 판별 기준: `isUnlimited === true && fixedMenuSeq != null`" 단일 소스 선언(모든 스킬 이용권 분기 공통). (2) "부가 설명 행(description)"을 **invisible reserve**로 규정 — 문구 숨김 + 공간 유지 + 스크린리더 차단. (3) 플랫폼별 구현 가이드 표 신규 — Web `invisible`, Android `Modifier.alpha(0f) + clearAndSetSemantics`, iOS `isHidden = true`(FlexLayout `isIncludedInLayout` **유지**). (4) collapse 방식(`display:none` / `flex.isIncludedInLayout=false`) 금지 경고. 3 플랫폼 모두 reserve로 구현 완료 상태(Web ISS-031, Android ISS-046, iOS ISS-041 재조정 2026-04-23) — 본 변경은 사후 명문화 | 전파트 구현 정합 확인 완료 |
+| 2026-04-24 | /architect | **S4 스킬 이용권 카드 렌더 분기 규칙 재정의 (ISS-048, design-spec.md §S4 정합)**: 기존 "스킬 이용권 카드 판별 기준 — 모든 분기 동일 AND 기준" 선언을 폐기하고 **2종 분기 구조**로 재작성. (1) 상품 자체 식별 분기(배지 ISS-040 / 부가설명 ISS-041·046): `isUnlimited && fixedMenuSeq != null` **AND**. (2) 개별 속성 반응 분기(만료일 ISS-021·022: `isUnlimited` 단독 / 링크 ISS-019·024·048: `fixedMenuSeq != null` 단독). api-spec.md의 두 필드 독립 계약(§247-258)과 정합. 링크 구성 요소 설명에 "노출 조건: `fixedMenuSeq != null` 단독" 명시 추가. 만료일 분기 블록 제목을 "isUnlimited 단독" 명시로 개정 + "fixedMenuSeq와 결합 판정 금지" 주석 추가. iOS/Android는 기존 구현이 재정의된 규칙과 이미 정합(코드 무수정), Web은 ISS-048 해결(2026-04-24)로 `CouponItem`에 링크 단독 조건 분기 추가 완료. | 전파트 구현 정합 확인 완료 |
+| 2026-04-24 | /architect | **S4 스킬 이용권 카드 판별 기준 + 부가 설명 행 처리 규칙 명문화 (ISS-041/046 정합)**: (1) §S4에 "스킬 이용권 카드 판별 기준: `isUnlimited === true && fixedMenuSeq != null`" 단일 소스 선언(모든 스킬 이용권 분기 공통). (2) "부가 설명 행(description)"을 **invisible reserve**로 규정 — 문구 숨김 + 공간 유지 + 스크린리더 차단. (3) 플랫폼별 구현 가이드 표 신규 — Web `invisible`, Android `Modifier.alpha(0f) + clearAndSetSemantics`, iOS `isHidden = true`(FlexLayout `isIncludedInLayout` **유지**). (4) collapse 방식(`display:none` / `flex.isIncludedInLayout=false`) 금지 경고. 3 플랫폼 모두 reserve로 구현 완료 상태(Web ISS-031, Android ISS-046, iOS ISS-041 재조정 2026-04-23) — 본 변경은 사후 명문화. ※ 본 항목의 "판별 기준: 단일 소스(AND)" 선언은 2026-04-24 재정의(ISS-048)로 폐기 — 본 Changelog 상위 항목 참조 | 전파트 구현 정합 확인 완료 |
 | 2026-04-23 | /analyze | S4 "스킬 보러가기 >" 링크 i18n 문구 3종 확정 명시 (ISS-047): ko "스킬 보러가기" / en "View Skill" / ja "スキルを見る". `>`는 텍스트 포함 금지 — chevron 이미지(ISS-027 해결 정합)로 분리 렌더 원칙 추가. Android는 기존 `coop_link_view_skill` 3종 대응 완료, iOS는 ISS-047 과업으로 대응 필요 | iOS (/dev-ios) 구현 대기 |
 | 2026-04-21 | /analyze | S4 스킬 이용권 카드에 "만료일/만료임박 표시 분기" 섹션 추가 (ISS-021/022): `isUnlimited === true`이면 만료일 + 만료임박 배지 + 점선 구분선 모두 숨김. sentinel 문자열 직접 비교 금지 경고. "스킬 보러가기 >" 링크 하단 우측 정렬 필수(ISS-023) 명시 | iOS/Android/Web 구현 완료 |
 | 2026-04-19 | /review 반영 | **설계 보완**: "`POST /api/coupon` 기존 경로 중 계속 사용하는 것" 섹션 추가 — couponSpecSeq 기반 배너 클레임은 신버전 클라이언트도 변경 없이 유지. code 경로만 `/register`로 이전. | 전파트 구현 예정 |
