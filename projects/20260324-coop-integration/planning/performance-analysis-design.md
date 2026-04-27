@@ -1,9 +1,11 @@
 # 성과 분석 리포트 — 데이터 엔지니어링 설계
 
-> 작성일: 2026-04-22
+> 작성일: 2026-04-22 (초안), 2026-04-27 (Q1 거래액 인식 결정 반영)
 > 작성자: /dev-data
-> 상태: 초안 — 외부 확인 항목(§9) 답신 후 v1.0 확정
+> 상태: Q1 결정 완료 → Q4 카카오 유입자 식별 논의 대기
 > 선행 문서: [1pager.md](../1pager.md), [planning/success-metrics-kpi.md](./success-metrics-kpi.md), [architecture.md](../architecture.md)
+
+> **2026-04-27 갱신**: 거래액(GMV) 인식 방식이 신규 이벤트/마트 도입 → `spent_cash_amount` 인젝션으로 변경되었습니다. 카카오 결제 매출은 기존 `revenue_krw` 공식에 자동 합산되며 신규 마트/지표 불필요. 등록 행위 추적용 신규 이벤트 3종(`coop_coupon_register_*`)은 KPI 측정용으로 그대로 유효. 상세는 [architecture.md §10 데이터 분석 설계](../architecture.md#10-데이터-분석-설계) 참조.
 
 ---
 

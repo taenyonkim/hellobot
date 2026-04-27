@@ -7,6 +7,56 @@
 
 ---
 
+### ISS-049: 카카오 100% 할인 쿠폰 결제 거래액 인식 누락 — `spent_cash_amount` 인젝션 정책
+
+| 분류 | enhancement |
+| 발견일 | 2026-04-27 |
+| 심각도 | P1 |
+| 영향 파트 | 서버, 데이터 |
+| 상태 | 결정 완료 (구현 대기) |
+
+**현상**
+
+카카오 100% 할인 쿠폰(스킬 교환권) 사용 결제 시 `pay_for_contents` 이벤트는 발화되나 모든 `spent_*` 파라미터가 0. 데이터 파이프라인 [mart_use_skill_se.sql:26-32](../../common-data-airflow/dags/scripts/hellobot/mart/mart_use_skill_se.sql:26) 의 `pay_under_750` 자동 격리로 재분류되어 다음 다운스트림에서 누락:
+
+- 구매자수 집계 (`event_name LIKE '%pay_for%'`)
+- 거래액 집계 (`SUM(spent_heart_coin*150 + spent_cash_amount)`)
+
+**원인**
+
+`mart_use_skill_se` 의 `pay_under_750` 분류 규칙이 750원 미만 결제를 매출 분석에서 격리하도록 설계됨. 100% 할인 결제(0원)도 이 규칙에 해당하여 `pay_for_contents` → `pay_under_750` 으로 자동 재분류.
+
+**결정 (2026-04-27)**
+
+서버에서 카카오 쿠폰 사용 결제 시 `pay_for_contents` 이벤트의 `spent_cash_amount` 파라미터에 **쿠폰 판매가** (`coop_marketing_product.current_price ?? coop_marketing_product.price`) 를 인젝션. 이로 인해 `revenue_krw > 0` 이 되어 `pay_under_750` 재분류 회피, 모든 다운스트림 매출/구매자 공식 자동 합산.
+
+상세 결정 사항은 [architecture.md §10 데이터 분석 설계](./architecture.md#10-데이터-분석-설계) 참조.
+
+**결정에 따른 작업**
+
+- **서버**: 카카오 쿠폰 식별 메커니즘 추가 + `pay_for_contents` 발화 시 `spent_cash_amount` 인젝션 + `coop_marketing_product.current_price` 신설 마이그레이션
+- **데이터**: BQ 컬럼/인라인 코멘트 description 갱신 (4건), 카탈로그 [ISS-017](../../common-data-airflow/docs/hellobot-data/catalog/issues.md) 등록 — **완료**
+- **다운스트림 SQL/대시보드 변경**: 없음 (자동 보정)
+
+**보류 사항**
+
+- 환불·취소 시 인젝션 정정 정책 (발생 시 추가 검토)
+- `used_coupon_*` 마트 컬럼 추출 (필요 시점에 추가)
+
+**Q4 카카오 유입자 식별 결정 (2026-04-28 추가)**
+
+카카오 신규 유저 정의를 첫 카카오 쿠폰 등록일 기준 시간 단위(일/주/월) 신규로 확정:
+
+- 일간 신규: 첫 카카오 등록일 = 가입일 (KST)
+- 주간 신규: 첫 카카오 등록주 = 가입주 (ISO Week)
+- 월간 신규: 첫 카카오 등록월 = 가입월
+
+데이터 측 변경: `coop_kakao_first_used_date` (DATE) 컬럼을 `mart_user_daily_info` 와 `union_mart_user_key_actions` 양쪽에 추가. `coop_marketing_coupon_usage` 의 `MIN(used_at)` 집계 (status 무관, `used`+`canceled` 모두 포함). RDS 일 1회 스냅샷 인입. **2026-04-30 구현 완료** 목표.
+
+상세 설계: [architecture.md §10-7 카카오 유입자 식별](./architecture.md#10-7-카카오-유입자-식별-q4-결정-2026-04-28)
+
+---
+
 ### ISS-048: design-spec §S4 "스킬 이용권 카드 렌더 분기 규칙" 내부 모순 재정의
 
 | 분류 | enhancement (스펙 정합성) |

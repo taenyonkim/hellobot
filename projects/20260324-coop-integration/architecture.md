@@ -584,6 +584,153 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
 
 ---
 
+## 10. 데이터 분석 설계
+
+> 본 섹션은 카카오 쿠폰 사용 결제의 거래액·매출 인식 방식과 관련 파이프라인 정책을 기록합니다. 자세한 분석 설계(이벤트 스펙·마트 변경·SQL 템플릿)는 [planning/performance-analysis-design.md](./planning/performance-analysis-design.md) 를 함께 참조.
+
+### 10-1. 거래액 인식 정책 — `spent_cash_amount` 인젝션 (2026-04-27 결정)
+
+**문제**
+
+기존 데이터 파이프라인 [mart_use_skill_se.sql:26-32](../../common-data-airflow/dags/scripts/hellobot/mart/mart_use_skill_se.sql:26) 의 `pay_under_750` 자동 격리 규칙에 의해, 카카오 100% 할인 쿠폰(스킬 교환권) 사용 결제는 모든 `spent_*` 가 0이 되어 다음 다운스트림에서 자동 누락됨:
+
+- 구매자수 집계 (`event_name LIKE '%pay_for%'`) — `pay_under_750` 미매칭
+- 거래액 집계 (`SUM(spent_heart_coin*150 + spent_cash_amount)`) — 모두 0이라 합산 영향 없음
+
+**결정 (Q1)**
+
+서버는 카카오 쿠폰 사용 결제 시 `pay_for_contents` 이벤트의 `spent_cash_amount` 파라미터에 **쿠폰 판매가** (`coop_marketing_product.current_price ?? coop_marketing_product.price`) 를 인젝션. 이를 통해:
+
+- `revenue_krw > 0` 이 되어 `pay_under_750` 재분류 회피
+- 모든 다운스트림 매출/구매자 공식이 변경 없이 자동 합산
+- 카카오 정산금 = HelloBot 매출 (회계 원칙 일치)
+
+**시멘틱 변경**
+
+| 항목 | 변경 전 | 변경 후 |
+|---|---|---|
+| `spent_cash_amount` | 사용자가 콘텐츠 구매에 실제 지불한 현금 | 이 트랜잭션의 현금 매출 (사용자 직접 결제 + 외부 결제 채널 환산금) |
+| `revenue_krw` | 유료 하트 + 현금 (실제 회수 매출) | 유료 하트 + 현금 (외부 결제 채널 환산금 포함) |
+
+→ 데이터 카탈로그 [ISS-017](../../common-data-airflow/docs/hellobot-data/catalog/issues.md) 등록.
+
+### 10-2. 인젝션 트리거 조건 (D1)
+
+서버는 결제 흐름에서 다음 조건을 모두 만족할 때 `spent_cash_amount` 인젝션:
+
+1. `usedCouponSeq` 존재
+2. 사용한 쿠폰이 **카카오 쿠폰** 임 — `coop_marketing_coupon_usage.issued_coupon_seq` 매칭으로 식별
+
+→ 서버는 카카오 쿠폰임을 인지할 수 있는 식별 메커니즘 추가가 필요 (예: `CouponService` 가 `usedCouponSeq` 로 `coop_marketing_coupon_usage` 를 조회하여 카카오 발급 여부 판단).
+
+**인젝션 값**: `coop_marketing_product.current_price ?? coop_marketing_product.price` (KRW)
+
+### 10-3. 하트 충전권 매출 인식 정책 (Q2)
+
+카카오 하트 충전권 등록 시 [coop-marketing.ts:383-393](../worktrees/hellobot-server/src/services/coop-marketing.ts:383) 의 `chargeHeart` 호출은 `expiredAt` 미전달 → HeartLog `expiredAt = NULL` → [heart.ts:155-189](../worktrees/hellobot-server/src/services/heart.ts:155) `useHeartLogic` 의 보너스 분기 (`willBeExpiredAt` 체크) 미진입 → **유료 하트 (`spent_heart_coin`) 로 적립**.
+
+→ 하트 충전권으로 적립된 하트는 사용자가 콘텐츠 소비 시 `pay_for_contents` 의 `spent_heart_coin > 0` 으로 자연 매출 인식. **별도 인젝션 불필요**.
+
+> 카탈로그 신규 enum [`HeartLogType.ChargeByGiftCoupon`](../worktrees/hellobot-server/src/models/entities/HeartLog.ts:32) 로 충전 logType 분류 가능 (참고용).
+
+### 10-4. 데이터 측 변경 사항
+
+| 레이어 | 파일 | 변경 |
+|---|---|---|
+| mart_integrated | [union_mart_user_key_actions.sql:1098-1101](../../common-data-airflow/dags/scripts/hellobot/mart_integrated/union_mart_user_key_actions.sql:1098) | BQ 컬럼 description 4건 갱신 (외부 채널 환산금 포함 명시) |
+| mart | [mart_use_skill_se.sql:103-108](../../common-data-airflow/dags/scripts/hellobot/mart/mart_use_skill_se.sql:103) | 인라인 코멘트 갱신 |
+| 카탈로그 | [tables/mart/mart_use_skill_se.md](../../common-data-airflow/docs/hellobot-data/catalog/tables/mart/mart_use_skill_se.md), [event-catalog.md](../../common-data-airflow/docs/hellobot-data/catalog/event-catalog.md), [metric-dictionary.md](../../common-data-airflow/docs/hellobot-data/catalog/metric-dictionary.md), [issues.md](../../common-data-airflow/docs/hellobot-data/catalog/issues.md) | description 갱신 + ISS-017 등록 |
+
+**SQL 변경 0건 (다운스트림 무영향)**. `used_coupon_*` 마트 컬럼 추출은 보류 (필요 시점에 추가).
+
+### 10-5. 보류·미반영 사항
+
+- **환불·취소 시 처리 정책 (C2)**: 미정. 발생 시 추가 검토. 현 인젝션은 `pay_for_contents` 발화 시점 1회만 처리하며 사후 정정 메커니즘 없음.
+- **카카오 정산 데이터 인입 (Q3)**: 불필요. 쿠폰 판매가 인젝션으로 매출 자동 집계 충족.
+- **재무/회계 매출 인식 시점 컨펌 (C3)**: 본 프로젝트 범위 외.
+- **`used_coupon_*` 마트 추출**: 사용자 결제 vs 외부 환산금 분리 분석은 향후 필요 시점에 추가.
+
+### 10-6. 분석 쿼리 영향
+
+기존 매출/구매자수 공식이 그대로 유효합니다 (변경 불필요):
+
+```sql
+-- 거래액 (변경 없음, 카카오 결제 자동 포함)
+SUM(spent_heart_coin * 150 + spent_cash_amount) AS revenue_krw
+FROM hlb_mart.mart_use_skill_se
+WHERE event_name LIKE '%pay_for%'
+
+-- 구매자수 (변경 없음)
+COUNT(DISTINCT user_id) AS num_users_paying
+FROM hlb_mart.mart_use_skill_se
+WHERE event_name LIKE '%pay_for%'
+```
+
+향후 카카오 결제만 분리하려면 `used_coupon_seq IS NOT NULL` 식별이 필요하며, 이는 마트 컬럼 추출 후 가능 (현재 보류).
+
+### 10-7. 카카오 유입자 식별 (Q4 결정, 2026-04-28)
+
+**정의**
+
+| 시간 단위 | 조건 (KST) |
+|---|---|
+| **일간 신규** | `coop_kakao_first_used_date = DATE(user_created_at, 'Asia/Seoul')` |
+| **주간 신규** | `DATE_TRUNC(coop_kakao_first_used_date, ISOWEEK) = DATE_TRUNC(DATE(user_created_at, 'Asia/Seoul'), ISOWEEK)` |
+| **월간 신규** | `DATE_TRUNC(coop_kakao_first_used_date, MONTH) = DATE_TRUNC(DATE(user_created_at, 'Asia/Seoul'), MONTH)` |
+
+→ ISO Week 기준 (월요일 시작), KST 시간대. `coop_kakao_first_used_date` 가 NULL 이면 카카오 미경험 사용자.
+
+**판정 정책**
+
+- **등록일만 사용**: `coop_marketing_coupon_usage.used_at` 의 `MIN()` (사용자별). `status` 필터 없음 (`used` + `canceled` 모두 포함). 카카오로 진입한 사실 자체를 유입으로 인정하며, 결제로 이어졌는지(구매자/미구매자)는 `pay_for_*` 이벤트로 자연 분류됨.
+
+**파이프라인 변경**
+
+| 레이어 | 파일 | 변경 |
+|---|---|---|
+| RDS 스냅샷 | [hellobot_snapshot_to_bigquery DAG](../../common-data-airflow/hlb_dags/) | `coop_marketing_coupon_usage` 일 1회 인입 (Glue/Airflow) → `server_rdb.snapshot_coop_marketing_coupon_usage` |
+| staging | `hlb_staging.staging_coop_marketing_coupon_usage` (신규) | 정제 SQL 신규 |
+| intermediate | `hlb_intermediate.intermediate_coop_kakao_first_used` (신규) | 사용자별 `MIN(used_at)` 집계 SQL 신규 (~10줄) |
+| mart | [mart_user_daily_info.sql](../../common-data-airflow/dags/scripts/hellobot/mart/mart_user_daily_info.sql) | `coop_kakao_first_used_date` (DATE, NULL 허용) 컬럼 1개 추가 + LEFT JOIN |
+| mart_integrated | [union_mart_user_key_actions.sql](../../common-data-airflow/dags/scripts/hellobot/mart_integrated/union_mart_user_key_actions.sql) | 동일 컬럼 propagate (mart_user_daily_info 또는 별도 LEFT JOIN) |
+| 카탈로그 | `tables/mart/mart_user_daily_info.md` 외 | 컬럼 description 갱신 |
+
+**분석 쿼리 (KPI 측정 — 출시 후 일평균 신규 구매자 +20명)**
+
+```sql
+SELECT
+  event_date,
+  -- 카카오 신규 구매자수 (3종 시간 단위)
+  COUNT(DISTINCT CASE
+    WHEN coop_kakao_first_used_date = DATE(user_created_at, 'Asia/Seoul')
+    THEN user_id END) AS kakao_new_user_daily_paying,
+  COUNT(DISTINCT CASE
+    WHEN DATE_TRUNC(coop_kakao_first_used_date, ISOWEEK)
+       = DATE_TRUNC(DATE(user_created_at, 'Asia/Seoul'), ISOWEEK)
+    THEN user_id END) AS kakao_new_user_weekly_paying,
+  COUNT(DISTINCT CASE
+    WHEN DATE_TRUNC(coop_kakao_first_used_date, MONTH)
+       = DATE_TRUNC(DATE(user_created_at, 'Asia/Seoul'), MONTH)
+    THEN user_id END) AS kakao_new_user_monthly_paying,
+  -- 카카오 경험자 전체 결제자
+  COUNT(DISTINCT CASE WHEN coop_kakao_first_used_date IS NOT NULL
+                      THEN user_id END) AS kakao_total_paying
+FROM `hellobot-f445c.hlb_mart_integrated.union_mart_user_key_actions`
+WHERE event_date BETWEEN DATE_SUB(CURRENT_DATE('Asia/Seoul'), INTERVAL 30 DAY)
+                     AND DATE_SUB(CURRENT_DATE('Asia/Seoul'), INTERVAL 1 DAY)
+  AND event_name LIKE '%pay_for%'  -- 결제자만
+GROUP BY event_date
+ORDER BY event_date DESC;
+```
+
+**일정**
+
+- **2026-04-30 까지 데이터 인프라 구현 완료** 목표
+- 출시 4/30, D+1 (5/1) 부터 카카오 데이터 측정 가능
+- 분석 시작 일자(5/11)까지 안정화 기간 확보
+
+---
+
 ## 참조 문서
 
 | 문서 | 설명 |
@@ -603,6 +750,8 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
 
 | 날짜 | 이슈 | 변경 내용 |
 |------|------|----------|
+| 2026-04-28 | ISS-049 (Q4 결정) | §10-7 카카오 유입자 식별 추가. 등록일 기준 시간 단위(일/주/월) 신규 사용자 분류. `coop_kakao_first_used_date` (DATE) 컬럼 1개 추가 — `mart_user_daily_info` + `union_mart_user_key_actions` 양쪽. RDS `coop_marketing_coupon_usage` 일 1회 스냅샷 인입. `status` 무관하게 모든 등록 행을 유입으로 인정 (구매자/미구매자 분류는 `pay_for_*` 으로 자연 분리). 4/30 구현 완료 목표. |
+| 2026-04-27 | ISS-049 (Q1 결정) | **§10 데이터 분석 설계 신설**. 카카오 쿠폰 사용 결제의 거래액 인식 방식을 `spent_cash_amount` 인젝션으로 확정. 서버 측에서 카카오 쿠폰임을 인지하여 `coop_marketing_product.current_price ?? price` 를 인젝션. 데이터 측 SQL 변경 0건, 카탈로그 description 4건 갱신 + 카탈로그 ISS-017 등록. 하트 충전권은 유료 하트(`expiredAt=NULL`) 적립으로 자연 매출 인식 검증 완료. `coop_marketing_product.current_price` 컬럼 신설 마이그레이션 필요(서버). |
 | 2026-04-21 | /architect | §6 "앱 WebView 임베딩 여부" 섹션 신설 — iOS `CouponListViewController`, Android `CouponListActivity`, Web `hellobot-web/app/coupon/page.tsx`의 세 플랫폼이 독립 구현이며 앱 WebView 공유 경로 없음을 확정. "모바일 웹뷰 환경 검증" 항목 해당 없음으로 종결 근거 기록. |
 | 2026-04-19 | /architect (via /workspace) | **2차 리뷰 반영**: §1 이중 경로 표 code 기반 행의 "기존 경로는 구버전 앱 전용" 문구를 "기존 `/api/coupon`의 code 경로는 구버전 앱 호환용으로만 유지"로 명확화 (셀 범위 해석 모호성 제거). |
 | 2026-04-19 | /review 반영 | **설계 보완** (리뷰 발견 사항 반영): §1에 "기존 `/api/coupon` 이중 경로(code/couponSpecSeq) 이해" 테이블 추가 — couponSpecSeq 경로 미변경 명시. §4 CouponPrefixRule "조회 전략" 확정(매 요청마다 DB 조회, 캐시 없음) + Raw SQL 시드 스키마 prefix 주의. §5-2에 DB 트랜잭션 경계 명시(two-phase commit, 보상 패턴) + Redlock 보상 완료 후 해제 규칙. §5-4 가드 발동 조건 세부 테이블 추가(6가지 입력 케이스별 동작). §6 웹뷰 영향 없음 확인 추가. §7에 신버전 클라이언트 APP_UPDATE_REQUIRED 수신 시나리오 추가. §9 "배포 순서 및 롤백" 신설(서버 선행 배포, Phase 2 정량 제거 조건). |

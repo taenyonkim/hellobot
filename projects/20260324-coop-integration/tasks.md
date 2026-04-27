@@ -16,6 +16,15 @@
 - [ ] 쿠프마케팅 상품 등록·테스트 쿠폰 요청서 송부 — [planning/coop-request-form.md](planning/coop-request-form.md)
 
 ## 서버 (/dev-server)
+
+### Q1 거래액 인식 인젝션 (2026-04-27 결정, ISS-049)
+- [ ] **마이그레이션** — `coop_marketing_product` 에 `current_price INTEGER NULL` 컬럼 추가 (기존 `price` 는 정상가 필수, `current_price` 는 판매가 선택. NULL 시 `price` 사용)
+- [ ] **카카오 쿠폰 식별 메커니즘** — `usedCouponSeq` 로 쿠폰이 카카오 발급(coop_marketing_coupon_usage 매칭) 인지 판별하는 로직 추가
+- [ ] **`pay_for_contents` 발화 시 `spent_cash_amount` 인젝션** — 카카오 쿠폰 결제 흐름에서 `coop_marketing_product.current_price ?? coop_marketing_product.price` 를 `spentCash` 로 전달
+- [ ] **인젝션 트리거 조건 검증** — 100% 할인 결제(`finalPrice == 0`) 외에도 카카오 쿠폰이면 모두 적용할지 vs 0원 결제만 적용할지 정책 결정 후 구현 (현재 카카오 쿠폰은 100% 할인뿐이므로 단기적으로는 동일)
+- [ ] **테스트 환경 검증** — 100% 할인 쿠폰 사용 후 BQ `analytics_164027297.server_events` 의 `pay_for_contents` 이벤트에 `spent_cash_amount` 가 채워졌는지 확인
+
+### 기존 과업
 - [x] 요구사항 정의 및 기존 시스템 검토
 - [x] 백엔드 설계 (테이블, API, 처리 로직)
 - [x] 사용자 스토리 및 화면 기획서
@@ -110,13 +119,38 @@
 > 설계 문서:
 > - [planning/success-metrics-kpi.md](planning/success-metrics-kpi.md) — KPI 프레임워크 (PM 작성)
 > - [planning/performance-analysis-design.md](planning/performance-analysis-design.md) — 데이터 엔지니어링 설계 (이벤트 스펙·마트·DAG·SQL)
+> - **[architecture.md §10 데이터 분석 설계](architecture.md#10-데이터-분석-설계)** — 거래액 인식 정책 (Q1 결정, 2026-04-27)
+
+### Q1 거래액 인식 — `spent_cash_amount` 인젝션 (2026-04-27 결정, ISS-049)
+- [x] 카탈로그 [ISS-017](../../common-data-airflow/docs/hellobot-data/catalog/issues.md) 등록 — `spent_cash_amount` 시멘틱 확장 (2026-04-27 /dev-data)
+- [x] BQ 컬럼 description 갱신 — `union_mart_user_key_actions.sql:1098-1101` ALTER COLUMN 4건 (외부 채널 환산금 포함 명시) (2026-04-27 /dev-data)
+- [x] 인라인 SQL 코멘트 갱신 — `mart_use_skill_se.sql:103-108` revenue_krw / spent_total_amount_krw 의미 (2026-04-27 /dev-data)
+- [x] 카탈로그 markdown 갱신 — `mart_use_skill_se.md`, `event-catalog.md`, `metric-dictionary.md` (2026-04-27 /dev-data)
+- [ ] common-data-airflow PR 머지 → develop 배포
+- [ ] (서버 인젝션 배포 후) BQ에서 카카오 결제 행 검증 — `pay_for_contents` 중 `spent_cash_amount > 0 AND spent_heart_coin = 0` 새 패턴 등장 여부 확인
+
+### Q2 하트 충전권 매출 인식 (2026-04-27 검증 완료)
+- [x] 서버 코드 검증 — [coop-marketing.ts:383](../worktrees/hellobot-server/src/services/coop-marketing.ts:383) `chargeHeart` 호출에 `expiredAt` 미전달 → `expiredAt = NULL` → 유료 하트 적립 (2026-04-27 /dev-data)
+- [x] `useHeartLogic` 분류 검증 — [heart.ts:155-189](../worktrees/hellobot-server/src/services/heart.ts:155) `willBeExpiredAt` 체크로 유료/보너스 분기, NULL 인 하트는 `spent_heart_coin` 으로 분류 (2026-04-27 /dev-data)
+- → 별도 인젝션 불필요. 하트 사용 시 자연 매출 인식.
+
+### Q4 카카오 유입자 식별 (2026-04-28 결정, 4/30 구현 완료 목표)
+설계: [architecture.md §10-7](architecture.md#10-7-카카오-유입자-식별-q4-결정-2026-04-28)
+- [ ] **RDS 스냅샷 인입** — `hellobot_snapshot_to_bigquery` DAG 에 `coop_marketing_coupon_usage` 일 1회 인입 추가 → `server_rdb.snapshot_coop_marketing_coupon_usage`
+- [ ] **`hlb_staging.staging_coop_marketing_coupon_usage.sql`** 신규 — 스냅샷 정제 (테스터 제외 등 표준 가공)
+- [ ] **`hlb_intermediate.intermediate_coop_kakao_first_used.sql`** 신규 — 사용자별 `MIN(used_at, 'Asia/Seoul')` 집계, status 무관 (`used`+`canceled` 모두 포함)
+- [ ] **`mart_user_daily_info.sql` 확장** — `coop_kakao_first_used_date` (DATE, NULL 허용) 컬럼 추가 + intermediate LEFT JOIN
+- [ ] **`union_mart_user_key_actions.sql` 확장** — `coop_kakao_first_used_date` 컬럼 propagate
+- [ ] **카탈로그 갱신** — `tables/mart/mart_user_daily_info.md`, `tables/mart_integrated/union_mart_user_key_actions.md` 컬럼 추가 + ALTER COLUMN description SQL 추가
+- [ ] **DAG 체인 검증** — staging → intermediate → mart → mart_integrated 1회 실행 후 BQ에서 카카오 사용자 표본 검증
+- [ ] **분석 쿼리 템플릿 작성** — KPI 측정 SQL (architecture.md §10-7 본문) 을 운영 대시보드/Slack 알림에 등록
 
 ### 성과 측정 지표 정의 (선행 — 기획/데이터 합의)
 - [x] KPI 정의서 초안 작성 — [planning/success-metrics-kpi.md](planning/success-metrics-kpi.md) (2026-04-22 /analyze)
 - [x] 데이터 엔지니어링 설계서 초안 — [planning/performance-analysis-design.md](planning/performance-analysis-design.md) (2026-04-22 /dev-data)
 - [ ] KPI 정의서 v1.0 확정 — 오픈 이슈 의사결정 후 (performance-analysis-design.md §9 TBD 8건 + success-metrics-kpi.md §6 7건)
-- [ ] 어트리뷰션 규칙 확정 — 등록=전환 단순화(제안), 신규 구매자 옵션 C 병행(제안) 승인 (§9-4, §9-6)
-- [ ] 쿠프마케팅 측 발급/판매 데이터 수령 방식 합의 — CSV/API/정산파일 (§9-3)
+- [ ] 어트리뷰션 규칙 확정 — Q4 카카오 유입자 식별 방식 결정 후 (논의 진행 중)
+- [ ] ~~쿠프마케팅 측 발급/판매 데이터 수령 방식 합의 — CSV/API/정산파일 (§9-3)~~ → Q3 결정: 현재 불필요 (spent_cash 인젝션으로 매출 자동 집계)
 
 ### 이벤트 스펙 (서버 연계 필요)
 설계: performance-analysis-design.md §3
