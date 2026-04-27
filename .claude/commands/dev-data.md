@@ -94,6 +94,111 @@ git branch Feat/{프로젝트명}
 git worktree add ../projects/{프로젝트디렉토리}/worktrees/common-data-airflow Feat/{프로젝트명}
 ```
 
+## BigQuery 직접 조회 (필수 안전 규칙)
+
+`/dev-data` 는 워크스페이스 권한 (`.claude/settings.json` §permissions.allow) 으로 `bq` CLI 직접 조회가 허용됩니다. 카탈로그 보강·갭 검증·이벤트 파라미터 스펙 추출 등에 사용. **모든 쿼리는 아래 규칙을 반드시 따르세요** — 비용·성능 사고 방지.
+
+### 필수 명령 형식
+
+```bash
+bq --project_id=hellobot-f445c query \
+   --use_legacy_sql=false \
+   --maximum_bytes_billed=10737418240 \
+   --max_rows=20 \
+   'SELECT ...'
+```
+
+| 옵션 | 값 | 이유 |
+|------|-----|------|
+| `--project_id=hellobot-f445c` | 고정 | 기본 GCP 프로젝트가 Between(`anonymous-logs-between-for-dev`)으로 설정돼 있어 명시 필요 |
+| `--use_legacy_sql=false` | 고정 | Standard SQL — 카탈로그 컨벤션과 일치 |
+| `--maximum_bytes_billed=10737418240` | 10GB 기본 | 비용 가드. 초과 시 사용자 승인 후 상향 |
+| `--max_rows=20` | 미리보기 | 큰 결과는 사용자에게 보고 후 다음 단계 결정 |
+
+### Dry-run 사전 검증 (의무)
+
+모든 `bq query` 실행 **전에** dry-run 으로 스캔 바이트 확인:
+
+```bash
+bq --project_id=hellobot-f445c query \
+   --use_legacy_sql=false \
+   --dry_run \
+   'SELECT ...'
+# 출력 예: "this query will process X bytes of data"
+```
+
+| 스캔 크기 | 처리 |
+|----------|------|
+| < 1 GB | 그대로 실행 |
+| 1~10 GB | 결과를 사용자에게 보고 후 실행 |
+| > 10 GB | 사용자 승인 + `--maximum_bytes_billed` 상향 후 실행 |
+
+dry-run 결과는 항상 사용자에게 보고 (스캔 바이트 + 비용 추정).
+
+### 파티션 필터 (의무)
+
+파티션 테이블 조회 시 파티션 키를 WHERE 절에 **반드시** 포함:
+
+| 테이블 패턴 | 파티션 필터 |
+|---|---|
+| `analytics_164027297.events_*` | `_TABLE_SUFFIX BETWEEN 'YYYYMMDD' AND 'YYYYMMDD'` |
+| `hlb_staging.staging_key_events_*` | `WHERE event_date BETWEEN ...` |
+| `hlb_mart.*` (대부분 일별 파티션) | `WHERE event_date = ...` |
+| `analytics_164027297.server_events` | `WHERE DATE(TIMESTAMP_TRUNC(event_timestamp, DAY), 'Asia/Seoul') = CURRENT_DATE('Asia/Seoul')` |
+
+> ⚠️ `analytics_164027297.server_events` 의 파티션 컬럼은 **`event_timestamp` (TIMESTAMP, DAY)** — `event_date` 컬럼은 존재하지 않음. 단순 timestamp 범위(`event_timestamp >= ... AND <`)도 동작하나 위 패턴이 가장 효율적 (검증: 0.9MB vs 20MB, 2026-04-27 dry-run). 상세: catalog [ISS-012](../../common-data-airflow/docs/hellobot/catalog/issues.md).
+>
+> 파티션 필터 누락 시 dry-run 에서 거대 스캔으로 표시 — **그 시점에 즉시 중단**하고 필터 추가 후 재시도. 강행 금지.
+
+### 활성 GCP 계정 확인
+
+조회 시작 전:
+
+```bash
+gcloud config get-value account
+# 기대값: taenyon.kim@krafton.com 또는 taenyon.kim@thingsflow.com
+```
+
+권한 오류 발생 시 계정 전환:
+```bash
+gcloud config set account taenyon.kim@thingsflow.com
+```
+
+### 세션 누적 스캔 한도 (자체 가드)
+
+세션 내 누적 스캔 **100 GB 초과 시 사용자에게 보고 후 계속 여부 확인**. Claude 가 Bash 호출마다 dry-run 결과를 누적 추적합니다.
+
+### 결과 활용 → 카탈로그 반영
+
+조회 결과는 **카탈로그 SSOT 에 반영** (이것이 BQ 직접 조회의 1차 목적):
+
+- 이벤트 파라미터 스키마 → `catalog/event-catalog.md §4-1` 각 이벤트 표 + §5 갱신
+- 마트 컬럼 실측 → `catalog/tables/{레이어}/{table}.md` 컬럼표
+- 카탈로그-실제 불일치 발견 → `catalog/issues.md` ISS-NNN 등록
+- 반영 시 출처 명시 (쿼리·실행일·스캔 바이트)
+
+### 금지
+
+- ❌ `SELECT *` from large tables (필요 컬럼만 명시)
+- ❌ 파티션 필터 없는 파티션 테이블 조회
+- ❌ `--maximum_bytes_billed` 없는 `bq query`
+- ❌ dry-run 생략 후 바로 실행
+- ❌ 쿼리 결과를 BQ 테이블에 저장 (CREATE TABLE / INSERT 등) — 별도 사용자 승인 필수
+- ❌ deprecated 된 `docs/hellobot/tables/` 의 컬럼 가정으로 쿼리 작성 (실제 스키마 `bq show` 또는 SQL 파일로 먼저 확인)
+
+### 자주 쓰는 보조 명령
+
+```bash
+# 데이터셋 테이블 목록
+bq --project_id=hellobot-f445c ls --max_results=50 hellobot-f445c:hlb_mart
+
+# 테이블 스키마 확인
+bq --project_id=hellobot-f445c show --format=prettyjson hellobot-f445c:hlb_mart.union_mart_user_key_actions
+
+# 미리보기 (스캔 비용 발생 X — 메타데이터만)
+bq --project_id=hellobot-f445c head --max_rows=5 hellobot-f445c:hlb_mart.mart_user_daily_info
+```
+
 ## 컨텍스트 로딩 규칙
 
 ```
