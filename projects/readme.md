@@ -35,6 +35,8 @@ projects/
     ├── design-spec.md                     # 디자인 스펙 (/design 작성, 계약 문서)
     ├── architecture.md                     # 기술 아키텍처 (/architect 작성)
     ├── api-spec.md                        # 파트 간 API 명세
+    ├── data-measurement-plan.md           # 데이터 측정 계획 (/dev-data 작성, 데이터 측정 필요 시)
+    ├── event-spec.md                      # 이벤트 발화 스펙 (/dev-data 작성, 신규 이벤트 도입 시)
     ├── qa-test-cases.md                   # QA 테스트 케이스 (/qa 작성)
     │
     │  ── 개발 환경 ──
@@ -74,6 +76,10 @@ projects/
 /architect 실행
   │  architecture.md 작성 (기술 아키텍처, 데이터 흐름, 시퀀스)
   │  api-spec.md 작성 (파트 간 API 계약)
+  ▼
+/dev-data 실행 (데이터 측정 필요 시 — /architect 와 병렬 가능)
+  │  data-measurement-plan.md 작성 (KPI·정의·정책·소스 매핑)
+  │  event-spec.md 작성 (신규 이벤트 도입 시)
   ▼
 /dev-* 실행 (파트별)
   │  워크트리에서 코드 구현
@@ -130,6 +136,8 @@ projects/
 | `design-spec.md` | /design | 디자인 스펙 (계약 문서 — 화면 스펙, 에셋, 파트별 가이드) |
 | `architecture.md` | /architect | 기술 아키텍처 (데이터 모델, 처리 로직) |
 | `api-spec.md` | /architect | 서버↔클라이언트 API 계약 |
+| `data-measurement-plan.md` | /dev-data | 데이터 측정 계획 (KPI·정의·정책·소스 매핑) — 데이터 측정 필요 프로젝트만 |
+| `event-spec.md` | /dev-data | 이벤트 발화 스펙 (이벤트 명·파라미터·발화 시점·검증) — 신규 이벤트 도입 프로젝트만 |
 | `qa-test-cases.md` | /qa | QA 테스트 케이스 및 검수 결과 |
 
 ### 리포 레벨 ({리포}/docs/features/해당피쳐/)
@@ -548,6 +556,125 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 > **Changelog 규칙**: 이슈로 인한 설계 변경 시 반드시 기록합니다.
 > api-spec.md에도 동일한 Changelog 섹션을 둡니다.
+
+---
+
+### data-measurement-plan.md (데이터 측정 계획)
+
+> **언제 작성하는가**: 1pager Success Metric 측정에 신규 KPI/이벤트/마트 변경이 필요한 프로젝트. 단순 기능 추가 + 기존 KPI 재사용만으로 충분하면 작성하지 않음.
+>
+> **역할**: 본 프로젝트의 **데이터 측정 SSOT**. KPI 정의·정책·소스 매핑·분석 정의를 단일 진실 원천으로 보유. architecture.md 의 §데이터 분석 섹션 대신 이 문서로 분리.
+
+```markdown
+# 데이터 측정 계획 (Data Measurement Plan)
+
+> 작성자: /dev-data
+> 상태: v{n} — {간단 상태}
+> 역할: 본 프로젝트의 데이터 측정 SSOT
+
+## 0. 문서 관계
+| 문서 | 역할 |
+|------|------|
+| 본 문서 | 무엇을 측정할지 (KPI·정의·정책·소스 매핑) |
+| event-spec.md | 어떻게 발화할지 (이벤트 스펙·검증) |
+
+## 1. 측정 목표
+- 1pager Success Metric ↔ 측정 가능 KPI 매핑
+- 측정 범위 (포함/제외)
+
+## 2. 핵심 정의
+- "신규 사용자" / "전환" 등 합의 필요 정의
+- 어트리뷰션 규칙
+- 시간대·달력 컨벤션 (KST/ISO Week 등)
+
+## 3. KPI 인벤토리
+- North Star
+- Input Metric
+- Output Metric
+- 보조 지표
+
+## 4. 데이터 소스 매핑
+- KPI 영역별 1차/2차 소스
+
+## 5+. 도메인별 정책 결정
+- (예: 매출 인식 정책, 신규 사용자 분류 등 — 프로젝트별 가변 섹션)
+
+## N-2. 측정 갭·보류 항목
+- 외부 데이터 의존, 운영 인프라 미준비, 보류 결정 등
+
+## N-1. 분석 쿼리 템플릿
+- 대표 KPI별 SQL
+
+## N. Changelog
+| 날짜 | 버전 | 변경자 | 내용 |
+```
+
+---
+
+### event-spec.md (이벤트 발화 스펙)
+
+> **언제 작성하는가**: 신규 Firebase 이벤트 / 서버 이벤트 / 화이트리스트 등록이 필요한 프로젝트. 기존 이벤트 재사용만으로 충분하면 작성하지 않음.
+>
+> **역할**: 클라이언트(/dev-ios·/dev-android·/dev-web) 가 그대로 발주받아 구현하고 QA 가 검증하는 단일 진실 원천. 측정 의도(KPI·정의)는 data-measurement-plan.md 참조.
+
+```markdown
+# 이벤트 스펙 (Event Spec)
+
+> 작성자: /dev-data
+> 상태: v{n}
+> 역할: 본 프로젝트의 이벤트 발화 SSOT
+
+## 0. 문서 관계
+| 문서 | 역할 |
+|------|------|
+| data-measurement-plan.md | 무엇을 측정할지 |
+| 본 문서 | 어떻게 발화할지 |
+| api-spec.md | 서버 응답 DTO (이벤트 파라미터 소스) |
+
+## 1. 명명 컨벤션
+- view_*, 동사_*, 채널 분류 정책 등 — catalog 컨벤션 준수
+
+## 2. 발화 원칙
+- 발화 주체 (Firebase / 서버 / DB 진실 원천 — 프로젝트별 결정)
+- 클라이언트가 응답 DTO 에서 읽는 파라미터
+
+## 3. 이벤트 정의
+### EVT-{n}. `{event_name}` ({설명})
+| 항목 | 값 |
+|------|----|
+| 발화 주체 | (Firebase / 서버) |
+| 발화 시점 | |
+| 데이터셋 | analytics_*.events_* / server_events |
+
+| 파라미터 | 타입 | 필수 | 소스 | 설명 |
+
+## 4. 파라미터 사전 (공통 enum)
+
+## 5. 서버 응답 DTO 의존성
+- 이벤트 파라미터를 채우기 위한 응답 DTO 보강 필요 항목
+
+## 6. 화이트리스트 등록
+- staging_key_events_fb_events_list / staging_key_events_se_events_list / events_list 중 어디
+
+## 7. 검증 절차 (5단계 표준)
+1. Firebase DebugView (즉시)
+2. BQ events_intraday_* (당일)
+3. BQ events_* (D+1, 결측률·분포)
+4. staging_key_events_* 도달 (화이트리스트 검증)
+5. 카탈로그 SSOT 반영 (event-catalog.md)
+
+## 8. 분석 쿼리 예시
+- 출시 직후 검증/모니터링용 표준 쿼리
+
+## 9. 후속 마트 반영
+- intermediate / mart / mart_integrated / pre_report 변경 사항
+
+## 10. 보류·확장
+
+## 11. Changelog
+```
+
+> **카탈로그와의 관계**: 본 문서는 **프로젝트 결정 기록**. 출시 안정화 후 `common-data-airflow/docs/hellobot-data/catalog/event-catalog.md` 로 정식 승격 (정상 워크플로우). `/workspace 종료` 단계에서 승격 산출물로 기록.
 
 ---
 

@@ -72,6 +72,8 @@ hellobot/                              ← 워크스페이스 루트
 │       ├── design-spec.md              ← 디자인 스펙 (/design 작성, 계약 문서)
 │       ├── architecture.md             ← 기술 아키텍처
 │       ├── api-spec.md                ← API 명세
+│       ├── data-measurement-plan.md   ← 데이터 측정 계획 (/dev-data, 데이터 측정 필요 시)
+│       ├── event-spec.md              ← 이벤트 발화 스펙 (/dev-data, 신규 이벤트 도입 시)
 │       ├── qa-test-cases.md           ← QA 테스트 케이스
 │       ├── designs/                   ← 디자인 원본 자료 (Figma 링크, 스크린샷, 와이어프레임)
 │       ├── planning/                  ← 기획 과업 산출물 (필요시 생성)
@@ -216,10 +218,11 @@ hellobot/                              ← 워크스페이스 루트
 1. `/analyze` → `readme.md`, `tasks.md` 작성
 2. `/design` → `design-spec.md` 작성 (Figma 스펙 추출, 계약 문서)
 3. `/architect` → `architecture.md`, `api-spec.md` 작성
-4. `/dev-*` → 워크트리에서 구현 후 tasks.md 체크, 이슈 발견/해결 시 issues.md 갱신
-5. `/review` → 변경사항 + 프로젝트 문서 대조 검증, 이슈 발견 시 issues.md + tasks.md
-6. `/qa` → `qa-test-cases.md` 작성, 이슈 발견 시 issues.md + tasks.md
-7. `/workspace` → status.md 파트 상태 동기화
+4. `/dev-data` (데이터 측정 필요 시) → `data-measurement-plan.md` 작성 (KPI·정의·정책). 신규 이벤트 도입 시 `event-spec.md` 추가 작성. /architect 와 병렬 가능
+5. `/dev-*` → 워크트리에서 구현 후 tasks.md 체크, 이슈 발견/해결 시 issues.md 갱신
+6. `/review` → 변경사항 + 프로젝트 문서 대조 검증, 이슈 발견 시 issues.md + tasks.md
+7. `/qa` → `qa-test-cases.md` 작성, 이슈 발견 시 issues.md + tasks.md
+8. `/workspace` → status.md 파트 상태 동기화
 
 ### 문서 업데이트 규칙 (모든 에이전트 필수)
 
@@ -241,7 +244,7 @@ hellobot/                              ← 워크스페이스 루트
 - **리포 status.md에 구현 내역을 쓰지 않음** — "무엇을 수정했나"는 git log, "왜 그렇게 결정했나"만 결정 로그에 기록
 - **issues.md에 해결 방안 상세를 쓰지 않음** — issues.md는 레지스트리 (현상+원인+상태만). 해결 내역은 tasks.md 과업 + 커밋
 - **issues.md에서 이슈를 섹션 간 이동하지 않음** — 상태 필드만 변경 ("미해결" → "해결 (날짜)")
-- **계약 문서(architecture.md, api-spec.md, design-spec.md) 수정 시 Changelog 누락하지 않음** — 날짜 + 변경자 + 내용 + 확인 컬럼 필수
+- **계약 문서(architecture.md, api-spec.md, design-spec.md, data-measurement-plan.md, event-spec.md) 수정 시 Changelog 누락하지 않음** — 날짜 + 변경자 + 내용 + 확인 컬럼 필수
 
 ### 이슈 관리 (모든 에이전트 공통)
 
