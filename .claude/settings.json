@@ -9,5 +9,8 @@
       "Bash(gcloud config get-value:*)",
       "Bash(gcloud config set project:*)"
     ]
+  },
+  "env": {
+    "PATH": "/Users/taenyon/Development/google-cloud-sdk/bin:${PATH}"
   }
 }
