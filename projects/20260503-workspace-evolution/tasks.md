@@ -16,6 +16,7 @@ Phase 1 (Discovery)  →  Phase 2 (Design)  →  Phase 3 (Pilot 계획)
 ### 1-A. Claude Code 기능 카탈로그 (`planning/claude-code-features.md`)
 
 - [x] 1차 시드 작성 — 알려진 기능별 용도/적용 후보 정리 (커맨드/스킬/훅/서브에이전트/메모리/MCP/스케줄)
+- [x] cmux 워커 spawn 패턴 검증 + 카탈로그 §13 추가 (2026-05-13, [TODO-002](../../../todos/TODO-002-cmux-spawn-verification.md)) — 외부 도구 통합 카테고리. P1 우선순위로 분류
 - [ ] 공식 문서 또는 변경 이력 기반 보강 — 최신 기능 누락 여부 점검 (필요시 `claude-code-guide` 에이전트 활용)
 - [ ] 워크스페이스 적용 후보 점수화 — 도입 비용 vs 효과로 우선순위 분류 (P1/P2/P3)
 - [ ] 기능별 "현재 미사용 → 도입 시 대체될 운영 행위" 매핑
@@ -79,4 +80,5 @@ Phase 1 (Discovery)  →  Phase 2 (Design)  →  Phase 3 (Pilot 계획)
 - [ ] 파일럿 리포 도메인 문서 시드 (예: `hellobot-server/docs/domain/heart-coupon.md`)
 - [ ] CLAUDE.md / `.claude/commands/*.md` 도메인 지식 참조 절차 반영
 - [ ] 메모리 시스템 활용 가이드 작성 + 시드
+- [ ] cmux 워커 spawn 운영 규칙 정착 — `CLAUDE.md` §기본 코디네이터 §직접 처리 vs 위임 표에 항목 추가 + 워커 브리핑 표준 템플릿 5요소(권한/금지/보고 형식/종료 조건/컨텍스트 한정) 명문화
 - [ ] 검증 (다음 신규 프로젝트에서 자산 활용도 측정)

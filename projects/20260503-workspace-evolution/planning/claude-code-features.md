@@ -215,6 +215,74 @@
 
 ---
 
+## 13. 외부 도구 통합 — cmux 워커 spawn 패턴
+
+| 항목 | 값 |
+|------|----|
+| 정체 | cmux 의 `new-workspace` 로 별도 Claude 세션을 spawn → 코디네이터(현재 세션)가 워커에 자기완결 브리핑을 주입 → 코디네이터는 사용자와 다음 대화를 즉시 재개. 워커는 독립 OS 프로세스로 병렬 실행. |
+| 현재 사용도 | **미사용** — 검증만 완료 ([TODO-002](../../../todos/TODO-002-cmux-spawn-verification.md), 2026-05-13) |
+| 강점 | 진짜 병렬 (코디네이터가 사용자와 다른 컨텍스트로 대화하는 동안 워커 독립 실행) / cmux notification·페인 링으로 워커 상태 푸시 (코디네이터 폴링 불요) / 메인 세션 컨텍스트 보호 |
+| 한계 | 워커는 코디네이터 컨텍스트를 모름 — 자기완결 브리핑 필수 / 사용자는 한 명이라 워커가 입력 요청하면 사용자가 워크스페이스 이동 / **cmux 가 macOS 전용** — 팀 표준화 시 제약 |
+| 도입 우선순위 | **P1** — 즉시 효과 + 추가 작성 거의 없음. 코디네이터 운영 규칙에 패턴 명문화만 필요. |
+
+### Subagent (§4) 와의 차이
+
+| 측면 | Subagent (Agent Tool) | cmux 워커 spawn |
+|------|----------------------|----------------|
+| 격리 단위 | 메인 세션 내 격리 컨텍스트 | OS 프로세스 단위 격리 |
+| 결과 회수 | 메인이 결과 await (블로킹) | 코디네이터 즉시 복귀, 워커가 비동기로 사용자·코디네이터에 알림 |
+| 사용자 상호작용 | 메인이 대신 (서브에이전트는 사용자와 대화 안 함) | 워커가 직접 사용자와 대화 가능 (사용자가 워크스페이스 전환) |
+| 적합 작업 | 단발 탐색·조사 | 다중 턴 자율 작업, 사용자 협의 필요한 작업 |
+
+> 두 메커니즘은 상호 보완. 광범위 탐색은 subagent, 다중 턴 자율 작업은 cmux 워커.
+
+### 적용 매핑 후보
+
+| 시나리오 | cmux spawn 활용 |
+|---------|-----------------|
+| 분리 커밋·코드 리뷰 같은 기계적 자기완결 작업 | 워커 spawn → 자율 실행 → 완료 알림 |
+| `/dev-data` 의 장시간 BigQuery 분석·DAG 수정 | 워커 spawn → 코디네이터는 사용자와 다른 작업 진행 |
+| `/qa` 의 다중 케이스 검증 수행 | 워커 spawn → 결과 보고 |
+| 동시 다중 프로젝트 운영 | 활성 프로젝트당 워크스페이스 1개 |
+| `/architect` + `/dev-data` 병렬 (api-spec 과 data-measurement-plan 동시 작성) | 두 워커 spawn (의존 관계 없을 때) |
+
+### 표준 절차 (검증 완료, [TODO-002](../../../todos/TODO-002-cmux-spawn-verification.md))
+
+```bash
+# 1. 워커 spawn (Claude 세션 자동 실행)
+cmux new-workspace --name "{작업명}" --cwd {path} --command "claude" --focus false
+# → "OK workspace:N"
+
+# 2. attach 대기 (~1초) — surface 의 tty 가 채워질 때까지
+
+# 3. 자기완결 브리핑 첫 메시지 주입 (권한·금지·보고 형식·종료 조건 포함)
+cmux send --workspace workspace:N "<브리핑>"
+cmux send-key --workspace workspace:N Enter
+
+# 4. 코디네이터는 즉시 사용자와 다음 대화 재개
+
+# 5. 워커 진행 보고 싶을 때 (다른 워크스페이스 read 시 --workspace + --surface 양쪽 명시 필수)
+cmux read-screen --workspace workspace:N --surface surface:M --lines 50
+
+# 6. 워커 완료 후 정리
+cmux close-workspace --workspace workspace:N
+```
+
+### 함정 (검증 시 발견)
+
+1. **ref 모호성**: 워크스페이스가 여러 개일 때 `--surface surface:N` 단독은 모호 → `"Surface is not a terminal"` 에러. read 계열은 `--workspace + --surface` 양쪽 명시. (`send` / `send-key` 는 `--workspace` 만으로도 동작.)
+2. **spawn 직후 attach 지연**: `tree` 가 surface 를 보여주긴 하지만 `tty=` 가 비어 있는 상태에서 첫 read 실패. 1초 대기 또는 `tty=` 채워질 때까지 폴링.
+
+### 운영 규칙 정착 (후속 작업)
+
+- `CLAUDE.md` §기본 코디네이터 §직접 처리 vs 위임 표에 "장시간 자기완결 작업 → cmux 워커 spawn" 항목 추가 후보
+- 워커 브리핑 **표준 템플릿** 정착 — 권한 / 금지 / 보고 형식 / 종료 조건 / 컨텍스트 한정 (어디까지 알아야 하는지) 5요소
+- 워커 브리핑은 본 세션에서 쓰는 `/workspace` 등 스킬 호출용 프롬프트와 동일 원리 — 자기완결성이 핵심
+
+> **주의**: cmux 는 macOS 전용. 팀원이 다른 OS 로 협업할 가능성이 있으면 본 패턴은 사용자 개인 워크플로우 한정. 팀 표준화 메커니즘은 OS-agnostic 한 skill / subagent 우선.
+
+---
+
 ## 12. 정리: 본 프로젝트의 적용 우선순위
 
 | 우선순위 | 항목 | 효과 / 비용 |
@@ -222,6 +290,7 @@
 | **P1** | 메모리 시스템 인덱스 격상 | 효과: 도메인 진입점 즉시 확보 / 비용: 낮음 |
 | **P1** | 리포 CLAUDE.md 보강 + `docs/domain` 진입점 | 효과: 컨텍스트 진입 비용 절감 / 비용: 리포별 시드 작성 부담 |
 | **P1** | hooks 도입 (status 동기화 / Changelog 미기재 경고) | 효과: "잊지 않기" / 비용: 셸 스크립트 + 디버깅 |
+| **P1** | cmux 워커 spawn 패턴 정착 (§13) | 효과: 진짜 병렬 작업 / 비용: 매우 낮음 (검증 완료, 운영 규칙 명문화만) |
 | **P2** | Subagent (Explore) 활용 정착 | 효과: 메인 컨텍스트 보호 / 비용: 호출 학습 |
 | **P2** | 반복 작업 스킬화 | 효과: 절차 표준화 / 비용: 스킬 작성 학습 |
 | **P3** | Scheduled task / Loop | 효과: 자동 점검 / 비용: 신뢰성 검증 필요 |
