@@ -682,6 +682,11 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 | 날짜 | 프로젝트명 | 상태 | 설명 |
 |------|-----------|------|------|
+| 2026-05-13 | [age-group-5yr](./20260513-age-group-5yr/) | 설계완료 · 개발대기 | `union_mart_user_key_actions` 등 6개 마트 SQL 에 5세 단위 균일 연령 버킷 `age_group_5yr` (event 시점 기준) 컬럼 추가. 월간 추이·drift 분석은 카탈로그 신규 recipe `age-cohort-trend-analysis.md` 로 표준화 |
+| 2026-05-11 | [external-ds-handover](./20260511-external-ds-handover/) | 초안 완료 | 외부 데이터 사이언티스트에게 BQ 조회 권한과 함께 전달할 패키지 — 카탈로그(infra-map · architecture · mart/event/metric · tables/) + 외부용 wrapper 5건(getting-started · conventions · caveats · query-guide · README) + 카탈로그 갭 보강 5건. 내부 운영 정보(SA 키·이슈·운영자) 제외 |
+| 2026-05-07 | [office-address-update](./20260507-office-address-update/) | 분석완료 · 개발대기 | 사무실 서교동 이전(잔다리로7길 3) — 웹 3개 리포(hellobot-web/webview/report-webview) footer i18n + 일본 특정상거래법 공시 주소 교체. 외부 채널(Notion/스토어/메일) 제외 |
+| 2026-05-03 | [workspace-evolution](./20260503-workspace-evolution/) | 분석중 | 워크스페이스 3차 진화 계획 — Claude Code 기능 활용 + 누적 프로젝트 회고 + 파트별 도메인 지식 누적 구조 설계. 적용은 후속 프로젝트로 분리. 진입: [architecture.md](./20260503-workspace-evolution/architecture.md) |
+| 2026-04-30 | [dbt-migration-prep](./20260430-dbt-migration-prep/) | **완료 (2026-05-01)** | dbt 마이그레이션 사전 As-Is 분석 — 17 finding 카드 (P1 인벤토리 5 + P2 시맨틱 baseline 11 + P7 Tier 분류 3 + overview) + 23 SSOT 인계 (v2). 후속 dbt 마이그 프로젝트 직접 인풋. 진입: [findings/00-overview.md](./20260430-dbt-migration-prep/findings/00-overview.md) |
 | 2026-04-23 | [admin-performance](./20260423-admin-performance/) | 설계완료 · 구현대기 | AdminJS dev 환경 초기 로드 지연 해결 — dev Secrets Manager에 `NODE_ENV=production` 추가 + 서버 번들 프리빌드·compression 방어 |
 | 2026-04-22 | [data-infra-documentation-v2](./20260422-data-infra-documentation-v2/) | 진행중 (장기) | 데이터 카탈로그 SSOT 점진적 보강 — 1차 인계 백로그 + 다른 프로젝트 진행 중 식별되는 카탈로그 확장 누적 |
 | 2026-04-22 | [data-infra-documentation](./20260422-data-infra-documentation/) | 완료 (2026-04-22) | HelloBot 데이터 카탈로그를 `common-data-airflow/docs/hellobot-data/catalog/` 로 이전 + 동기화 규칙 신설 ([PR #176](https://github.com/thingsflow/common-data-airflow/pull/176)). ISS-001 해결, ISS-002~011 SSOT 이전. 후속: data-infra-documentation-v2 |

@@ -1,0 +1,8 @@
+event_name,n_raw,n_staging
+use_attribute,177649,0
+update_attribute,160612,0
+receive_user_message,115823,0
+enter_skill,22733,23002
+consume_skill,14162,14235
+skill_feedback_complete,3163,0
+pay_for_contents,2071,2074
