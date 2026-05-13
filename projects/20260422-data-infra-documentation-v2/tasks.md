@@ -49,6 +49,148 @@
   - **산출물**: `event-catalog.md §4-1` 각 이벤트의 파라미터 표 + §5 "파라미터 스키마 확인 범위" 갱신 (현재 6종 → 전체)
   - **권장 범위**: P0 마트(`union_mart_user_key_actions` 계보 9건)에서 사용되는 이벤트 약 20종 우선
 
+#### dbt-migration-prep 인계 — 시스템 패턴 박스 신설 (★★★ 우선순위 높음)
+
+다음 3건은 [dbt-migration-prep](../20260430-dbt-migration-prep/) P1 분석에서 발견된 **카탈로그에 명문화되지 않은 시스템 동작 패턴**. 다음 사람이 같은 함정에 빠지지 않도록 카탈로그 갱신 권장.
+
+- [ ] **`queries.py` 가 destination 진실원천 박스 신설**
+  - **출처**: dbt-migration-prep [F-004 §1](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-004-orphan-and-dead-marts.md#1-queriespy-가-destination-의-진실원천--f-001-§6-의-절반은-false-alarm) (2026-04-30)
+  - **사실**: SQL 파일은 SELECT 본문, `dags/scripts/hellobot/{layer}/queries.py` 안의 SQL string 이 `INSERT INTO` / `CREATE TABLE` destination DDL 의 진짜 원천
+  - **위치**: `catalog/architecture.md §5 공통 규약` 또는 §3 인근에 박스 신설 (~10줄)
+  - **영향**: 미명문화로 분석 시 "SQL 파일 == destination" 오해 → false alarm 31건 발생 사례 (F-001 1차)
+
+- [ ] **화이트리스트 3중 구조 실효 박스 + ISS-014 정량 보강**
+  - **출처**: dbt-migration-prep [F-002 §1·§2](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-002-event-usage-frequency.md#1-화이트리스트-3중-구조의-실측-동작) (2026-04-30, BQ 어제 1일 + 7일 실측 검증)
+  - **사실**: 1차 `events_list` (68건) 는 거의 효과 없음. 실제 게이트는 2차 `staging_key_events_fb_events_list` (44) / `staging_key_events_se_events_list` (7).
+  - **정량**: events_list 에만 등록된 57건 중 다수가 raw 발화량 있음에도 staging 도달 못함 (`view_tab_at_home` 205K, `view_home_main` 168K, `view_chatroom` 150K 등)
+  - **위치**: `catalog/architecture.md §5` 또는 `event-catalog.md §2` 에 박스 + `issues.md ISS-014` 정량 추가
+  - **결정 필요**: A) 1차 게이트 폐기 명시 / B) 1차를 살리는 SQL 변경 제안 (architecture 변경)
+
+- [ ] **외부 출력 (Slack KPI 알림) 표 신설 — `architecture.md §4-2`**
+  - **출처**: dbt-migration-prep [F-003 §2](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-003-external-interfaces.md#2-slack-kpi-알림--채널소스-마트-매핑-보존-필수) (2026-04-30)
+  - **사실**: `hlb_kpi_noti.py` 가 5개 KPI 함수 → 3개 Slack 채널 (`C06QV5555A7` #div_chatbot_biz, `C06A9JZRNH1` #team_ops-maximize, `C02HMRP42QM` 미상)
+  - **소스 마트**: `union_mart_user_key_actions`, `report_kpi_total_skill_*`, `mart_fixed_menu_server`, `mart_use_skill_se` 등
+  - **위치**: `catalog/architecture.md §4 데이터 소스` 다음에 `§4-2 외부 출력` 신설 (현재 입력만 명시)
+  - **영향**: 마트 변경 시 어떤 외부 출력에 영향 미치는지 추적 가능
+
+#### dbt-migration-prep 인계 — 자산 정정 (우선순위 중간)
+
+- [ ] **`union_mart_user_key_actions` 위치 명료화**
+  - **출처**: dbt-migration-prep [F-001 §3](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-001-mart-downstream-map.md#3-union_mart_user_key_actions-위치-재정의-필요-) (2026-04-30)
+  - **사실**: 카탈로그가 "분석 본진" 으로 표현했으나 내부 SQL 다운스트림 단 2건 — 실제 사용자는 외부 (Looker · ad-hoc 분석가)
+  - **위치**: `infra-map.md §핵심 테이블 10선` + `tables/mart_integrated/union_mart_user_key_actions.md` 설명 보강 ("외부 분석 진입점, 내부 hub 아님")
+
+- [ ] **계층별 인벤토리 정합성 표 신설**
+  - **출처**: dbt-migration-prep [F-001 §4](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-001-mart-downstream-map.md#4-계층별-인벤토리-정합성) (2026-04-30)
+  - **사실**: BQ 테이블 vs SQL destination vs 참조 비교 표가 카탈로그에 없음. orphan 식별의 도구 역할
+  - **위치**: `infra-map.md` 또는 `architecture.md §3` 다음에 표 추가
+
+- [ ] **`hlb_staging.staging_currency_rate_sheet` GSheet sync 명문화**
+  - **출처**: dbt-migration-prep [F-004 §4](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-004-orphan-and-dead-marts.md#4-외부-source--운영자-수동-tier-4-dbt-비대상-airflow-잔존) (2026-04-30)
+  - **사실**: `hlb_staging.staging_currency_rate_sheet` 가 GSheet sync 인데 카탈로그 §데이터 소스 표는 `google_sheet_sync.*` 만 명시 (다른 데이터셋에 sync 결과가 위치)
+  - **위치**: `catalog/architecture.md §4 데이터 소스` 표 보강
+
+- [ ] **`hlb_report` 데이터셋 분류 정합성**
+  - **출처**: dbt-migration-prep [F-001 §6](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-001-mart-downstream-map.md) (2026-04-30)
+  - **사실**: `hlb_report.pre_report_cohort_retention_visit` 와 `hlb_report.pre_report_user_revenue_info` 의 데이터셋 분류 모호 (이름 prefix `pre_report_*` 와 데이터셋 `hlb_report` 불일치) — 잘못된 분류 또는 historical 잔재
+  - **위치**: `mart-catalog.md` 정합성 검토 + 정리 시 `issues.md` 등록
+
+#### dbt-migration-prep 인계 — 이슈 보강 (우선순위 중간)
+
+- [ ] **ISS-014 실측 검증 정량 추가**
+  - **출처**: dbt-migration-prep [F-002 §1](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-002-event-usage-frequency.md#1-화이트리스트-3중-구조의-실측-동작) (2026-04-30)
+  - **사실**: 운영자 의도(OR union) 와 실 동작(2차 only effective) 갭의 정량 — 1차에만 57건 / 2차만 39건 / 3개 모두 등록 1건. raw 발화 있는데 staging 못 도달 시그널.
+  - **위치**: `catalog/issues.md ISS-014` 본문에 실측 정량 추가
+
+- [ ] **Dead whitelist 50건 deprecation 표기**
+  - **출처**: dbt-migration-prep [F-002 §3](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-002-event-usage-frequency.md#3-dead-whitelist-50건-정리-후보-mp-3) (2026-04-30)
+  - **사실**: 화이트리스트에 등록 but 7일 raw 0건 = 50건 (chatbot_subscription·relation·collection·skill_reward·daily_fortune 카테고리 다수)
+  - **위치**: `catalog/event-catalog.md §4` 해당 이벤트 표에 deprecated 표기 (또는 별도 §deprecated 이벤트 섹션)
+  - **선결**: 카테고리별 사용자 검토 (기능 자체 deprecated 여부)
+
+#### dbt-migration-prep 인계 — 정책·기타 (우선순위 중간/낮음)
+
+- [ ] **dbt 마이그 정책 MP-1·MP-2·MP-3 카탈로그 반영** (후속 dbt 프로젝트 시작 시점)
+  - **출처**: dbt-migration-prep [readme §마이그 정책](../20260430-dbt-migration-prep/readme.md#마이그-정책--2026-04-30-사용자-확정) (2026-04-30 사용자 발화)
+  - **정책**:
+    - MP-1: 외부 인터페이스 보존은 권장이지만 절대 제약 아님 (trade-off 결정 가능)
+    - MP-2: 마트 스키마는 가급적 유지하되 더 나은 구조 가능
+    - MP-3: 분석 결과로 정리 대상 식별 → 마이그 비대상 결정
+  - **위치**: `catalog/architecture.md` 또는 신규 `recipes/dbt-migration-policy.md`
+  - **시점**: 후속 dbt 마이그 프로젝트 시작 시점 (지금은 dbt-migration-prep 한정)
+
+- [ ] **핵심 테이블 10선 우선순위 갱신** (다운스트림 카운트 기준)
+  - **출처**: dbt-migration-prep [F-001 §2](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-001-mart-downstream-map.md#2-의존-핫스팟--top-5) (2026-04-30)
+  - **사실**: 다운스트림 카운트 실측 결과 — `mart_use_skill_se` (47), `intermediate_user_daily_info` (26), `mart_skill_funnel_fb` (23) 가 실제 의존 무게 1·2·3위. 현재 카탈로그 §핵심 테이블 10선 의 순서·표현과 align 필요
+  - **위치**: `infra-map.md §핵심 테이블 10선`
+
+- [ ] **mart_adhoc 일별 스냅샷 안티패턴 표기**
+  - **출처**: dbt-migration-prep [F-004 §8](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-004-orphan-and-dead-marts.md#8-mart_adhoc-일별-스냅샷-누적-854--848) (2026-04-30)
+  - **사실**: `adhoc_banner_order` 854 일분 / `adhoc_home_section_order` 848 일분 — 일자별 새 테이블 분기 패턴. dbt 안티패턴 (partitioned table 권장)
+  - **위치**: `mart-catalog.md` 또는 `architecture.md §5 공통 규약`
+
+#### dbt-migration-prep 인계 — 운영 환경 구축 (★★★ 우선순위 높음 + 중간)
+
+다음 8건은 [dbt-migration-prep 90-next-actions §6](../20260430-dbt-migration-prep/findings/90-next-actions.md#6-v2-인계-추가-항목--2431-8건) 인계 — **"데이터 팀이 일하는 환경" (본질 목표)** 직결. 27·28 이 핵심.
+
+- [x] **★ `catalog/domain-glossary.md` 신규 작성** (인계 #27, ★★★ 우선순위 높음) — 2026-05-06 빈 골격 작성 완료
+  - **출처**: dbt-migration-prep [90-next-actions §3](../20260430-dbt-migration-prep/findings/90-next-actions.md#3-갭--본-prep-으로-안-채워진-영역) (2026-05-06) — 두 예시 요청 (월별 잔고 추이 / 충전 하트 재구매율) 시뮬레이션에서 막힘 → "잔고", "재구매율" 같은 비즈 개념 → 자산 매핑 부재 확인
+  - **사실**: `metric-dictionary` 가 "지표명 → 정의" 라면 `domain-glossary` 는 "비즈 개념 (잔고·재구매·이탈) → 답할 수 있는 자산"
+  - **결정 (2026-05-06 사용자)**: 사전에 채우지 않고 빈 골격 + 점진적 축적 메커니즘으로 출발. 카테고리 §1~§6 fix (RFM 제외 — q2), 본문 0개. 요청 처리 시 `recipes/data-request-handling.md` Step 4 흐름에서만 등록.
+  - **산출물**:
+    - `catalog/domain-glossary.md` 신규 — 카테고리 §1~§6 + §99 미분류 + 항목 작성 템플릿 + 사용 흐름 다이어그램
+    - `catalog/readme.md` §과업·인벤토리 갱신 (cross-link 추가)
+    - `catalog/infra-map.md §과업 유형 → 진입 문서` 표 갱신 + 개정 이력
+  - **워크트리**: `Feat/data-infra-v2-catalog-event-design`
+
+- [x] **★ `catalog/recipes/data-request-handling.md` 신규 작성** (인계 #28, ★★★ 우선순위 높음) — 2026-05-06 작성 완료
+  - **출처**: dbt-migration-prep [90-next-actions §3](../20260430-dbt-migration-prep/findings/90-next-actions.md#3-갭--본-prep-으로-안-채워진-영역) (2026-05-06) — 데이터 요청 해석 → 자산 점검 → 갭 식별 → 액션 결정 흐름의 명문화 부재
+  - **사실**: 일상 요청 (지표·추이·세그먼트 분석) 처리 표준 절차 부재 — `/dev-data` 가 매번 즉흥 진행
+  - **결정 (2026-05-06 사용자)**: 빈 골격 + 점진적 축적 메커니즘. §D (자산 부재) 분기는 "할 수 없는 이유" 사유 보고로 종결, 새 자산 추가는 별도 의사결정 (q4). 자주 받는 요청 패턴 라이브러리는 누적 후 추가.
+  - **산출물**:
+    - `catalog/recipes/data-request-handling.md` 신규 — 6 step (수신 → 키워드 추출 → 글로사리 탐색 → 명확화·합의 → 5 유형 분기 → log 갱신) + 질문 템플릿 + 함정 체크리스트
+    - `catalog/request-log.md` 신규 — 요청 1건당 1행 누적 (REQ-NNN), 활성·종결 표 분리, 분류·상태 코드
+    - `catalog/readme.md` §과업·레시피·참조 표 갱신 (cross-link 추가)
+    - `catalog/infra-map.md §과업 유형 → 진입 문서` 표 갱신 + 개정 이력
+  - **워크트리**: `Feat/data-infra-v2-catalog-event-design`
+
+- [ ] **`catalog/recipes/add-new-metric.md` 신규 작성** (인계 #29, 우선순위 중간)
+  - **출처**: dbt-migration-prep [90-next-actions §6](../20260430-dbt-migration-prep/findings/90-next-actions.md#6-v2-인계-추가-항목--2431-8건) (2026-05-06) — `readme.md §레시피` 표에 placeholder 만 있는 상태
+  - **사실**: 신규 지표 합의·등록 절차 부재 — 정의·산식·소스·소비처·오너십 결정 흐름 명문화 필요
+  - **위치**: `catalog/recipes/add-new-metric.md` 신규
+  - **인접 갱신**: `readme.md §레시피` placeholder 제거 + `metric-dictionary.md` cross-link
+  - **권장 작성 시점**: 28 (data-request-handling) Step 5 작성 중 자연 발생 시 — 28 의 §C 가 본 recipe 의 핵심 절차를 결정
+
+- [ ] **`catalog/recipes/add-new-mart.md` 신규 작성** (인계 #30, 우선순위 중간)
+  - **출처**: dbt-migration-prep [90-next-actions §6](../20260430-dbt-migration-prep/findings/90-next-actions.md#6-v2-인계-추가-항목--2431-8건) (2026-05-06) — `readme.md §레시피` 표에 placeholder 만 있는 상태
+  - **사실**: 신규 마트 추가 절차 부재 — 그레인 결정·소스 lineage·DAG 위치·dbt 매핑·tables/ 카드 작성 흐름 명문화 필요
+  - **위치**: `catalog/recipes/add-new-mart.md` 신규
+  - **인접 갱신**: `readme.md §레시피` placeholder 제거 + `mart-catalog.md` / `architecture.md §3 DAG 체인` cross-link
+  - **권장 작성 시점**: 28 (data-request-handling) Step 6 작성 중 자연 발생 시 — 28 의 §D 가 본 recipe 의 핵심 절차를 결정
+
+- [ ] **`add-new-event.md` 가 운영 워크플로우 (28번) 와 cross-link 보강** (인계 #31, 우선순위 낮음)
+  - **출처**: dbt-migration-prep [90-next-actions §6](../20260430-dbt-migration-prep/findings/90-next-actions.md#6-v2-인계-추가-항목--2431-8건) (2026-05-06)
+  - **사실**: 28 (data-request-handling) Step 6 (§D) 에서 add-new-event 로 위임될 때 양방향 cross-link 필요
+  - **위치**: `catalog/recipes/add-new-event.md` 상단·하단 cross-link 추가
+  - **권장 작성 시점**: 28 작성 완료 후 한꺼번에
+
+- [ ] **F-001 raw TSV → 카탈로그 임베드** (인계 #24, 우선순위 중간)
+  - **출처**: dbt-migration-prep [F-001](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-001-mart-downstream-map.md) raw TSV (2026-04-30)
+  - **사실**: 마트 다운스트림 카운트 raw 데이터가 prep 산출물에만 존재 — 카탈로그에 임베드 시 변경 영향 추적 도구로 상시 활용 가능
+  - **위치**: `catalog/data/mart-downstream-counts.tsv` 신규 또는 `mart-catalog.md` 표 임베드
+  - **운영**: 분기마다 재계산 권장 (BQ 쿼리 보존 + 갱신 주기 명시)
+
+- [ ] **F-002 raw CSV → 카탈로그 임베드** (인계 #25, 우선순위 중간)
+  - **출처**: dbt-migration-prep [F-002](../20260430-dbt-migration-prep/findings/10-usage-frequency/F-002-event-usage-frequency.md) raw CSV 5개 (2026-04-30)
+  - **사실**: 이벤트 발화 빈도 + 화이트리스트 정합성 raw 데이터가 prep 산출물에만 존재 — 카탈로그에 임베드 시 dead 이벤트·미관측 이벤트 식별 상시 활용 가능
+  - **위치**: `catalog/data/event-frequency-{date}.csv` 신규 또는 `event-catalog.md` 표 임베드
+  - **운영**: 분기마다 재계산 권장. #9 (Dead whitelist 50건 deprecation) 와 함께 처리 가능
+
+- [ ] **`infra-map.md §과거 분석 산출` cross-link 섹션 신설** (인계 #26, 우선순위 중간)
+  - **출처**: dbt-migration-prep [90-next-actions §6](../20260430-dbt-migration-prep/findings/90-next-actions.md#6-v2-인계-추가-항목--2431-8건) (2026-05-06)
+  - **사실**: prep 의 17 finding 카드가 카탈로그에서 접근 안 됨 — infra-map 에 진입점 추가 시 다음 사람이 발견 사용 가능
+  - **위치**: `catalog/infra-map.md` 하단에 §과거 분석 산출 섹션 신설 → prep 17 카드 + 90-next-actions cross-link
+
 ### 우선순위: 중간
 
 - [x] **`.claude/commands/dev-data.md` §파티션 필터 표 갱신 — `analytics_164027297.server_events` 행** (2026-04-27, [ISS-012](../../common-data-airflow/docs/hellobot-data/catalog/issues.md) 해결)
