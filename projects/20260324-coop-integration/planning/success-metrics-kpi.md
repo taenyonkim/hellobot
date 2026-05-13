@@ -1,8 +1,12 @@
 # 쿠프마케팅 연동 — Success Metric / KPI 정의서 (초안)
 
+> ⚠️ **DEPRECATED (2026-04-28)** — 본 초안은 [`../data-measurement-plan.md`](../data-measurement-plan.md) v1.0 으로 통합되었습니다. KPI 정의·정의·갭 항목 모두 거기서 SSOT. 본 문서는 작업 히스토리 보존용.
+
+---
+
 > 작성일: 2026-04-22
 > 작성자: /analyze
-> 상태: 초안 — 기획·데이터 검토 후 확정
+> 상태: deprecated (2026-04-28) — data-measurement-plan.md 로 통합
 
 ## 0. 목적
 

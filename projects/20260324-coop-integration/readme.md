@@ -55,6 +55,8 @@
 | [design-spec.md](./design-spec.md) | 디자인 스펙 (계약 문서 — 화면 스펙, 에셋, 파트별 가이드) |
 | [architecture.md](./architecture.md) | 기술 아키텍처 (데이터 흐름, 데이터 모델, 파트별 구현 포인트) |
 | [api-spec.md](./api-spec.md) | 클라이언트용 API 명세 |
+| [data-measurement-plan.md](./data-measurement-plan.md) | 데이터 측정 계획 SSOT (KPI·정의·정책·소스 매핑) |
+| [event-spec.md](./event-spec.md) | 이벤트 발화 스펙 SSOT (Firebase 이벤트·파라미터·검증 절차) |
 | [client-guide.md](./client-guide.md) | 클라이언트 개발 가이드 |
 | [qa-test-cases.md](./qa-test-cases.md) | QA 테스트 케이스 (74건) |
 

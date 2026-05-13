@@ -7,6 +7,434 @@
 
 ---
 
+### ISS-070: Android — `CoopRepositoryImpl.subscribeOn` 컨벤션 문서화 부재
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CoopRepositoryImpl.kt:18` 가 `subscribeOn(Schedulers.io())` 를 repository 내부에 두었는데, 호출자 `CouponListViewModel.register()` 는 자체 `subscribeOn` 을 두지 않고 이 구현 디테일에 의존.
+**원인**: 컨벤션이 base class 또는 문서로 enforce 되지 않음. 캐싱 레이어 추가 등으로 구현이 바뀌면 의도치 않게 다른 스케줄러에서 subscribe 될 위험.
+**예방**: CoupRepository 인터페이스 KDoc 에 "Implementations MUST `subscribeOn(Schedulers.io())`" 명시 또는 base class contract 도입.
+**참고**: PR #1127 claude-bot review #14.
+
+---
+
+### ISS-069: Android — `SafeToast.showToastForDurationMs` Handler 누수 가능성
+
+| 분류 | bug |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `SafeToast.kt:52` 의 `showToastForDurationMs` 가 두 번째 `Handler` 를 생성하여 `postDelayed` 로 toast.cancel() 호출하나, 이 Handler 를 cancelable 한 형태로 보관하지 않음. Activity/Application context 가 destroy 되어도 Runnable 이 toast 참조 유지하여 GC 차단 가능.
+**원인**: 기존 `toastHandler`(별도 overload 에서 사용) 와 동기화되지 않은 별도 Handler 사용.
+**예방**: 기존 `toastHandler` 재사용 또는 신규 Runnable 을 cancelable token 으로 보관 후 cancelToast() 경로에서 함께 cancel.
+**참고**: PR #1127 claude-bot review #13. Android 12+ 에서 `Toast.cancel()` 자체가 best-effort 라는 점도 함께 인지 필요.
+
+---
+
+### ISS-068: Android — "스킬 보러가기" 링크 터치 타깃 48dp 미만 (WCAG 2.1 AA 미달)
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponItem.kt:172` 의 "스킬 보러가기 >" 클릭 가능 Row 가 `Modifier.wrapContentSize()` 만 적용 → 텍스트 intrinsic size 로 축소되어 48×48dp 최소 터치 타깃(Material Design / WCAG 2.1 AA) 미달.
+**원인**: 시각 디자인에 맞춰 컴팩트한 영역만 부여, 접근성 가이드라인 미고려.
+**예방**: `defaultMinSize(minWidth=48.dp, minHeight=48.dp)` 추가 또는 `padding(vertical=8.dp, horizontal=4.dp)` 으로 시각 변경 없이 hit area 확대.
+**참고**: PR #1127 claude-bot review #12.
+
+---
+
+### ISS-067: Android — `CouponItem` 하드코딩 색상 `0xFFBE7AFE` (디자인 시스템 토큰 미사용)
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponItem.kt:169` 에서 `Color(0xFFBE7AFE)` (violet400/SUB PURPLE) 인라인 하드코딩.
+**원인**: `TfColor` 디자인 토큰 시스템에 violet400 미정의 또는 도입 누락. ISS-027 해결 시 chevron 아이콘 tint 색상으로 추가됨.
+**예방**: `TfColor.Violet400` 토큰 추가 (없으면 신설) + `CouponItem` 에서 토큰 참조. 다크모드/브랜드 리프레시 시 글로벌 변경 일관 적용 가능.
+**참고**: PR #1127 claude-bot review #11.
+
+---
+
+### ISS-066: Android — `CouponListActivity.onResume` 무조건 `viewModel.load()` (불필요한 네트워크 요청)
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: ISS-036 해결을 위해 `onResume` 에 `viewModel.load()` 추가했는데, 다이얼로그 dismiss / 바텀시트 close / 앱 백그라운드 복귀 등 모든 resume 케이스에서 전체 쿠폰 리스트 재조회.
+**원인**: refresh 필요 케이스(쿠폰 등록 성공 후) 와 단순 resume 케이스를 구분 안 함.
+**예방**: ViewModel 에 `needsRefresh` dirty flag 추가 → register 성공 시에만 set, `onResume` 진입 시 flag 확인 후 load.
+**참고**: PR #1127 claude-bot review #10. ISS-036 의 단순 해결 방식의 부작용.
+
+---
+
+### ISS-065: Android — Firebase 분석을 ViewModel 에서 직접 호출 (Repository/UseCase 분리 권장)
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponListViewModel.kt:200` 부근 `fireRegisterSuccessEvent` / `fireRegisterFailureEvent` 가 `firebase.fireEvent(...)` 직접 호출. 분석은 side-effect 관심사로 ViewModel 책임 밖.
+**원인**: Firebase 이벤트 3종 발화 구현 시 우선순위로 동작 정합성에 집중, 아키텍처 분리는 후속.
+**예방**: `CoopRepository` decorator 또는 `CouponAnalytics` use-case 신설 → ViewModel 은 위임만. ViewModel 단위 테스트 시 Firebase SDK mock 부담 제거 + 분석 provider 교체 용이.
+**참고**: PR #1127 claude-bot review #9.
+
+---
+
+### ISS-064: Android — `CouponListViewModel.parseErrorBody` 가 `org.json` 사용 (Moshi 일관성 위반)
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponListViewModel.kt:281` 에러 body 파싱이 `org.json.JSONObject`. 코드베이스 전체는 Moshi 사용.
+**원인**: 단발성 파싱이라 Moshi DTO 작성 부담 회피.
+**예방**: `ApiErrorBody`/`ApiErrorDetail` Moshi `@JsonClass(generateAdapter = true)` DTO 신설 + 기존 `ParsedError` data class 그대로 반환 (`Pair<String?, String?>` positional 반환 회피).
+**참고**: PR #1127 claude-bot review #8.
+
+---
+
+### ISS-063: Android — `CouponListViewModel` `.doFinally` dispose 경로 thread context 위험
+
+| 분류 | bug |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 (잠재 이슈, 현재 시점 재현 사례 없음) |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponListViewModel.kt:141` 의 `.doFinally { _isRegistering.value = false }` 가 `observeOn(mainThread)` 후 stream 종료 → 정상 onSuccess/onError 경로는 main 이지만, `onCleared()` → `compositeDisposable.clear()` dispose 경로는 dispose 호출자 스레드(보통 main 이지만 보장 X).
+**원인**: `doFinally` 의 dispose 경로 thread context 보장 부재. StateFlow update 가 off-main 에서 발생할 가능성.
+**예방**: `doFinally` 제거 + `onSuccess`/`onError` 핸들러 끝에서 명시적으로 `_isRegistering.value = false` reset.
+**참고**: PR #1127 claude-bot review #7.
+
+---
+
+### ISS-062: Android — `CouponListViewModel` `_isRegistering` + `isProcessing` 플래그 중복
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponListViewModel.kt:73` `_isRegistering: MutableStateFlow<Boolean>` 와 별도 `isProcessing: Boolean` 이 항상 동시 set/clear, 항상 동일 값 보유.
+**원인**: ISS-042 (등록 버튼 in-flight 시각화) 와 register 중복 탭 가드를 별도 도입한 흔적. 통합 미실시.
+**예방**: `_isRegistering.value` 를 단일 source of truth 로 사용 — `register()` 진입 시 `if (_isRegistering.value) return` 가드 + 기존 set 그대로. `isProcessing` 필드 제거.
+**참고**: PR #1127 claude-bot review #6.
+
+---
+
+### ISS-061: Android — `CouponListViewModel` `isProcessing`/`isAnonymous` 스레드 안전성 미보장
+
+| 분류 | bug |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 (잠재 race, 현재 사용 패턴상 재현 가능성 낮음) |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponListViewModel.kt:76` `isAnonymous` 가 `Schedulers.io()` 의 RxJava 구독에서 write, main 의 `onInputFocused()`/`onInputCoupon()` 에서 read. 메모리 배리어 없어 visibility 미보장.
+**원인**: 평문 `Boolean` 필드 사용. JVM 메모리 모델상 happens-before 관계 부재.
+**예방**: `@Volatile` 추가 또는 `_showLogInBanner` StateFlow 직접 참조 (`isAnonymous = _showLogInBanner.value`) 하여 별도 필드 제거. `isProcessing` 도 동일 적용 (또는 ISS-062 통합 시 자동 해결).
+**참고**: PR #1127 claude-bot review #5.
+
+---
+
+### ISS-060: Android — `CouponListViewModel.couponRepository` 가 public (`private val` 누락)
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CouponListViewModel.kt:53` `couponRepository: CouponRepository` 생성자 파라미터에 `private val` 미부여 → public read-only property 노출. View 레이어에서 repository 직접 접근 가능.
+**원인**: Kotlin 생성자 파라미터의 default visibility 가 public 인 점 간과.
+**예방**: `private val couponRepository: CouponRepository` 로 수정. 1줄 변경.
+**참고**: PR #1127 claude-bot review #4.
+
+---
+
+### ISS-059: Android — `CoopConfirmScreen.kt` `ImageLoader` 매 recomposition 재생성
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-08 |
+| 심각도 | P3 (성능) |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CoopConfirmScreen.kt:81` Composable 본체에서 `ImageLoader.Builder(context)...build()` 직접 호출 → 매 recomposition 마다 새 인스턴스 + 스레드 풀/캐시 할당.
+**원인**: `remember { }` 미적용. Coil singleton ImageLoader (`LocalContext.current.imageLoader`) 미활용.
+**예방**: `val imageLoader = remember(context) { ImageLoader.Builder(context)...build() }` 로 감싸거나, Coil singleton 사용 시 builder 자체 제거.
+**참고**: PR #1127 claude-bot review #3.
+
+---
+
+### ISS-058: Android — `CoopHeartCompleteDialog` configuration change 시 prop 손실 (회전 시 "0 하트 충전" + 버튼 무동작)
+
+| 분류 | bug |
+| 발견일 | 2026-05-08 |
+| 심각도 | P2 (회전·폰트 변경 빈도 낮으나 발생 시 사용자 노출 결함 + 충전 확인 불가) |
+| 영향 파트 | Android |
+| 상태 | 미해결 |
+
+**현상**: `CoopHeartCompleteDialog.kt:17` `heartQuantity`/`couponName`/`onConfirmClick` 가 property assignment 으로 설정 (`CoopHeartCompleteDialog().apply { heartQuantity = ... }`). configuration change(화면 회전 / 폰트 사이즈 변경) 발생 시 시스템이 no-arg 생성자로 Fragment 재생성 → 모든 prop 이 default(`0`/`null`/`null`) 로 reset. 결과: "**0 하트가 충전되었어요**" 표시 + 확인 버튼 클릭 시 아무 동작 없음.
+**원인**: Android Fragment lifecycle 의 retain 메커니즘 미준수. property assignment 이 saved state 에 포함되지 않음.
+**예방**: `heartQuantity`/`couponName` → `arguments` Bundle (`newInstance(heartQuantity, couponName)` 팩토리 패턴). `onConfirmClick` 람다는 Bundle 직렬화 불가 → `FragmentResultApi` 또는 shared ViewModel 로 결과 전달 (`setFragmentResult` / `setFragmentResultListener`).
+**참고**: PR #1127 claude-bot review #1. QA Step 2-QA 단계에서 "충전 완료 다이얼로그 표시 중 회전" 검증 누락 가능성. release/2.41.0 머지 차단 사유로 보지 않음 — 회전 빈도 낮음, 일반적 사용 흐름에서는 미재현. 다음 release 또는 별도 hotfix 권장.
+
+---
+
+### ISS-057: iOS — `LoginViewController` self ↔ containerNavigationController 강참조 cycle (release/2.52.0 Debug 빌드 토스트 노출)
+
+| 분류 | bug |
+| 발견일 | 2026-05-08 |
+| 심각도 | P2 (Debug 빌드에서만 토스트 노출, Release 사용자에는 무영향. 단 LoginViewController 매 인스턴스가 누수되어 누적 시 메모리 증가) |
+| 영향 파트 | iOS |
+| 상태 | 해결 (2026-05-08) |
+
+**현상**: 로그인 후 dismiss 되면 `Modules/Common/CommonUIKit/.../ViewController.swift:82-103` 의 `#if DEBUG` 메모리 릭 디텍터가 토스트 `LoginViewController(0x...) not deallocated after being dismissed` 를 띄움.
+
+**원인**: 커밋 `43472b9a5 fix: 로그인 화면이 present되지 않던 문제 수정` (2026-04-17) 에서 init 시점 nav 의 조기 해제를 막기 위해 `containerNavigationController` 를 strong stored property 로 보유. 그러나 동일 nav 가 self 를 `viewControllers[0]` 로 강참조하므로 self ↔ nav 양방향 강참조 cycle 발생 → dismiss 후에도 dealloc 되지 않음.
+
+**제약**: `Hellobot/Legacy/Application/DeepLinkUtils.swift:124` 가 `loginViewController.navigationController` 를 init 직후 사용하므로 nav 생성을 `present()` 호출 시점으로 단순 이동하면 회귀 발생. cycle 만 끊는 패치가 필요.
+
+**해결**: `LoginViewController.viewDidDisappear(_:)` 오버라이드 추가. rootParent 가 dismiss 중이거나 self 가 부모에서 제거되는 시점에 다음 runloop 으로 `containerNavigationController = nil` 처리해 cycle 차단. nav 해제 도중 self 까지 deinit 되는 race 방지를 위해 `DispatchQueue.main.async` 사용.
+
+---
+
+### ISS-056: 운영 어드민 사용취소 시 L2 8005 응답 미동기 + 회수 가드 부재로 DB 상태 불일치·하트 중복 차감 가능
+
+| 분류 | bug |
+| 발견일 | 2026-05-06 |
+| 심각도 | P0 (운영 데이터 불일치 + 사용자 하트 중복 차감 가능) |
+| 영향 파트 | 서버 |
+| 상태 | 미해결 |
+
+**현상**: 운영 환경 어드민(AdminJS) 에서 카카오 쿠폰 `919758897939` 의 사용 취소를 클릭했을 때 어드민에 성공 노티가 표시되고 step 1(하트 회수) 도 수행되나, `coop_marketing_coupon_usage.canceled_at` 이 NULL 로 유지되어 어드민 목록에 `status='used'` 로 남음. 운영자가 동일 증상으로 14:18~14:24 KST 사이 4회 연타 클릭 — 모두 동일 결과.
+**재현**: 운영 어드민 → 해당 usage 행 → "사용 취소" → 노티 "쿠폰 사용을 취소하고 상품을 회수하였습니다." 표시 / DB 는 `status='used', canceled_at=NULL` 그대로.
+**근본 원인 (3종 복합)**:
+1. **L2 8005 응답 사일런트 스킵** — `src/services/coop-marketing.ts:575` `cancelCoupon` 이 L2 응답 ResultCode `0000` 만 성공으로 보고 `status/canceled_at` 갱신. 8005 (L2 컨텍스트 = "이미 사용취소된 쿠폰", `references/api-reference.md:88` "요청에 따른 반전 메시지") 는 DB 갱신 스킵 + throw 없음. 어드민 핸들러는 throw 가 없으므로 성공 노티 표시 → 운영자 인지 불가.
+2. **회수 가드가 회수 완료 여부 미점검** — `src/services/coop-marketing.ts:583-622` `adminCancelCoupon` 의 step 1(상품 회수) 가드는 `usage.heartLogSeq`(=L1 충전 로그) 만 확인. 회수 완료 기록을 별도 추적하지 않아 **클릭마다 회수 실행**. 919758897939 케이스 4회 클릭 발생 → `heart_log` 의 `use_by_gift_coupon_recovery` 4건 적재 가능 + 잔액에 따라 최대 4×360=1440 하트 차감 가능 (검증 필요).
+3. **어드민 동시 클릭 보호 없음** — `CoopMarketingCouponUsage.options.ts:63` `isAccessible` 가드는 클라이언트 캐시 기반이라 서버 측 직렬화 불가. 운영자 연타 / 더블클릭에 무방비.
+**확정 단서 (`coop_marketing_api_log` 4건 분석)**: 모든 L2 응답 `ResultCode=8005, ResultMsg="이미취소됨||본사(2026-05-06 13:02)", UseYN=N`. 쿠프마케팅 본사 측은 13:02 KST 에 이미 사용취소 처리 완료. 14:18~14:24 의 어드민 클릭 4회는 모두 "이미 취소된 상태"에서 호출된 케이스. 13:02 시점의 취소 주체(자동 보상 / 본사 직접) 는 별도 추적 필요.
+**영향**:
+- 운영 데이터 불일치 — 쿠프마케팅 canceled vs 헬로우봇 DB used → BigQuery 인입(`coop_kakao_first_used_date` 등) 정확도 저하.
+- 사용자 하트 중복 회수 누적 — 919758897939 케이스 4회 회수 시도 (실제 차감 수량 검증 필요).
+- 운영자가 "성공" 노티만 보고 동일 동작을 반복 → 차감 누적.
+**해결 방향 (사용자 협의 완료, 패치 착수 예정)**:
+1. **취소 상태 동기화**: `cancelCoupon` 이 L2 응답 `0000` OR `8005` 둘 다 idempotent canceled 마킹 (`COALESCE(canceled_at, NOW())`). 그 외 비-success 는 throw 로 어드민에 표면화.
+2. **상품 회수 상태 분리**: `coop_marketing_coupon_usage.recovered_at` (TIMESTAMP WITH TIME ZONE NULL) 신규 컬럼. `adminCancelCoupon` 의 회수 가드를 `recovered_at IS NULL` 로 교체. 회수 성공 시 `COALESCE(recovered_at, NOW())` 로 마킹. 취소 응답과 회수 처리는 독립 가드 — 어느 단계가 끊겨도 재실행 시 끊긴 단계만 재진행.
+3. **동시 클릭 직렬화**: `redLock("coop:admin-cancel:${userSeq}:${couponCode}", 10000)` 로 연타 보호.
+4. **L2 → 회수 순서 재배치**: 현행은 회수→L2. 신규는 L2 동기화→회수 (사용자 의도). L2 가 throw 해도 회수는 다음 클릭에 `recovered_at` 가드로 재진행 가능.
+**부분 회수 정책 결정**: 사용자 잔액 부족 시 `Math.min(heartQuantity, totalUsable)` 로 부분 차감 발생 가능. **부분 회수도 `recovered_at` 마킹** (회수 시도 1회로 종료) — 운영자가 잔액 보고 추가 조치 판단. 추후 부분 회수 추적 필요시 `recovery_heart_log_seq`/`recovered_quantity` 컬럼 확장.
+**자동 보상 경로 영향 없음**: `cancelCoupon` 자동 호출 경로(`coop-marketing.ts:416, 487`) 는 "상품 지급 실패 → L2 만 호출 (회수 불필요)" 컨텍스트로 회수 가드 변경의 영향 범위 밖. 단 8005 idempotent 처리는 자동 경로에도 동일 적용 — 자동 보상이 이미 취소된 상태를 만나도 안전하게 종료.
+**수정 범위 추정**: 4 파일 / 실질 ~100줄.
+- `src/models/migrations/<NN>-AddRecoveredAtToCoopMarketingCouponUsage.ts` 신규 — 컬럼 추가 + 기존 `canceled` 행 `recovered_at = canceled_at` 백필.
+- `src/models/entities/CoopMarketingCouponUsage.ts` — `recoveredAt` 컬럼 1줄 추가.
+- `src/services/coop-marketing.ts` — `cancelCoupon` 의 8005 처리 + `adminCancelCoupon` 재구성 + `recoverProduct` 분리.
+- `src/admin/options/CoopMarketingCouponUsage.options.ts` — `showProperties`/`listProperties` 에 `recoveredAt` 노출, `isAccessible` 가드 정밀화 (선택).
+**운영 정합화 (별도 hotfix 단계 예정)**:
+- 919758897939 행 `status='canceled', canceled_at='2026-05-06 04:02:00+00', recovered_at=<heart_log 첫 회수 시각>` 직접 UPDATE.
+- `heart_log` 의 14:18~14:24 회수 건수 검증 → 중복 차감분 ChargeByCs 등으로 환원.
+- 13:02 시점 취소 주체 추적 — `coop_marketing_api_log` 동일 시각대 자동 L2/L3 호출 여부 + 운영자 admin 로그 (별도 이슈 분리 검토).
+**연관 이슈**:
+- ISS-008 (어드민 취소 시 상품 상태 표시) — 해결됨. 본 이슈는 후속 안전장치.
+- ISS-001 (쿠폰 취소 후 재사용 유니크 제약 위반) — 해결됨. `recovered_at` 도입으로 재사용 케이스 추적이 더 명료해짐.
+- ISS-015 (Redlock 미구현) — 해결됨. 본 이슈의 (3) 가드도 동일 redLock 인프라 사용.
+**출처**: 운영 QA 사용자 보고 (2026-05-06). 어드민 사용취소 후 DB canceled_at 미반영 + 어드민 4회 연타로 발견. 사용자 협의로 해결 방향 확정.
+
+---
+
+### ISS-055: 쿠프마케팅 CompCode 환경 분리 누락 — dev/prod 동일 하드코딩(`A911`) 송신, env 분리 필요
+
+| 분류 | enhancement |
+| 발견일 | 2026-05-05 |
+| 심각도 | P1 (운영 보안/환경 분리 — env var 미설정 시 빈 CompCode 송신) |
+| 영향 파트 | 서버 + 인프라 |
+| 상태 | 미해결 |
+
+**현상**: `src/common/config.ts:594` 의 `coopMarketing.compCode` 가 `"A911"` 로 하드코딩되어 모든 환경(local/development/testing/staging/production) 에서 동일 값 송신. 같은 블록의 `authKey` 는 `process.env.COOP_MARKETING_AUTH_KEY` 로 환경변수화 완료 / `url` 은 `isProduction` 분기 적용 / `compCode` 만 누락된 비대칭 상태.
+**근본 원인**: 최초 구현 시 쿠프마케팅 측 단일 브랜드코드 안내(`A911`)로 dev/prod 분리 필요성을 인지하지 못함. 이후 운영 브랜드코드(`X259`) 별도 발급이 확정되어 env 분리 필요.
+**확정 값**:
+- 개발: `COOP_MARKETING_COMP_CODE=A911`
+- 운영: `COOP_MARKETING_COMP_CODE=X259`
+**해결 방향**: `compCode: process.env.COOP_MARKETING_COMP_CODE` (기본값 없음 — env 누락 시 빈 CompCode 로 쿠프마케팅 측 인증 실패하여 즉시 표면화). EKS 매니페스트(`common-infra-eks-deploy/`) 에 dev/prod 환경별 키 등록 필요(`/dev-infra` 협업).
+**참고**: 같은 어댑터 파일 `giftiel:574` 는 이미 `compCode: isProduction ? "A376" : "A294"` 로 환경 분리 완료 — `coopMarketing` 도 동일 정책 적용.
+**출처**: 사용자 보고 (2026-05-05).
+
+---
+
+### ISS-054: 운영 환경 쿠프마케팅 URL 스킴 오류 — `http://...:443` 가 즉시 RST → CM006 토스트 노출
+
+| 분류 | bug |
+| 발견일 | 2026-04-30 |
+| 심각도 | P0 (운영 영향) |
+| 영향 파트 | 서버 |
+| 상태 | 해결 (2026-04-30) — 핫픽스 PR #2403 (commit `8372dadc`) master 머지 + ArgoCD 운영 sync 완료. dev 환경은 URL 다름(영향 없음). |
+
+**현상**: ISS-053 핫픽스 배포 직후, 동일한 운영 쿠폰 등록 플로우에서 22001 마스킹이 걷히자 실제 원인이었던 `CM_NETWORK_ERROR` (CM006, "일시적인 통신 오류가 발생했습니다") 가 사용자 토스트로 노출됨. 운영 서버에서 카카오 쿠프마케팅 API 호출이 100% 실패.
+**재현**: 운영 환경에서 90/91 prefix 쿠폰 등록 → CM006 토스트.
+**근본 원인**: `src/common/config.ts` 의 운영 URL 이 `http://authapi.inumber.co.kr:443/AuthUse` (스킴=HTTP, 포트=443, HTTPS 전용 포트). 쿠프마케팅 운영 서버는 443 포트에서 TLS 핸드셰이크만 수락하는데 평문 HTTP 요청이 도착하면 즉시 TCP RST. axios 가 `Recv failure: Connection reset by peer` 로 throw → catch 블록이 `CM_NETWORK_ERROR` 변환. 로컬 curl 비교 검증으로 확정 (HTTP 스킴 → 즉시 끊김 / HTTPS 스킴 → HTTP/2 200 + 정상 ResultCode).
+**해결**: `src/common/config.ts:591` `http://authapi.inumber.co.kr:443/AuthUse` → `https://authapi.inumber.co.kr/AuthUse`. dev URL (`http://test.authapi.inumber.co.kr:9999/AuthUse`) 은 비표준 포트 + 정상 동작 중이라 변경 없음. 단일 라인 수정.
+**커뮤니케이션 인프라 검증** (사용자 로컬 curl, prod 응답 본문 분석): TLS 1.2 핸드셰이크 OK, HTTP/2 200, AuthKey 검증 통과(9999/9981 미발생), CompCode A911 수락, 응답 ResultCode `8001 미존재쿠폰` (= `CM_COUPON_NOT_FOUND`/CM001 매핑) — 통신 계층 100% 정상 확인.
+**예방**: ① 운영 외부 API URL 등록 시 스킴-포트 정합 검증 필수 (443→https, 80→http). ② 핫픽스 #1 (ISS-053) 이 마스킹 제거를 통해 본 이슈를 노출시킨 것이 빠른 발견 사유 — 정확한 에러 코드 보존 정책의 가치 사례.
+**커밋**: `8372dadc` (master), PR #2403.
+**출처**: ISS-053 핫픽스 배포 후 사용자 운영 재시도 보고 (2026-04-30).
+
+---
+
+### ISS-053: 운영 환경 `coop_marketing_api_log.result_code` varchar(4) 위반 — 22001 SQL 에러가 실제 `CM_NETWORK_ERROR` 마스킹
+
+| 분류 | bug |
+| 발견일 | 2026-04-30 |
+| 심각도 | P0 (운영 영향) |
+| 영향 파트 | 서버 |
+| 상태 | 해결 (2026-04-30) — 핫픽스 PR #2401 (commit `f2f12a84`) master 머지 + ArgoCD 운영 sync + deploy-dev cherry-pick (commit `c5245d05`) 완료. |
+
+**현상**: 운영 환경에서 카카오 쿠폰 등록 시 클라이언트가 `ERROR.22001` (PostgreSQL `string_data_right_truncation`) 응답을 수신하여 사용자에게 알 수 없는 에러로 노출. 정상 비즈니스 에러(CM 시리즈) 가 SQL 에러로 덮어씌워져 원인 추적 불가.
+**재현**: 운영 환경에서 임의의 쿠폰번호 등록 → `ERROR.22001` 응답.
+**근본 원인**: `coop_marketing_api_log.result_code` 컬럼 정의는 `character varying(4)` (kakaobiz API 명세 ResultCode String(4) 기준). `src/services/coop-marketing.ts` 의 catch 블록 3곳(L0:154-164 / L1:312-334 / L3:677-686) 이 axios timeout/네트워크 실패 시 `saveApiLog({resultCode: "TIMEOUT", ...})` 호출 — `"TIMEOUT"` 7자가 varchar(4) 에 INSERT 시도되어 22001 발생. 이 22001 이 정상 catch 흐름의 마지막 throw(`HttpError(CM_NETWORK_ERROR)`) 보다 먼저 던져지면서 실제 에러 코드를 덮어쓰는 순서 의존 버그.
+**해결**: catch 3곳 모두 `saveApiLog` 호출 제거 + `winston.error` 로 stack/마스킹 쿠폰코드/originalAuthCode/userSeq 기록. throw 의미 유지 (L0/L1: `CM_NETWORK_ERROR`, L3: throw 없음 — 보상 케이스). 의미상 응답 미수신 케이스는 ResultCode 자체가 없으므로 api_log 적재 의미 없음 + 서버 이상 시 쓰레기 데이터 누적 회피. Entity/마이그레이션은 무변경 (kakaobiz 명세 정합 유지).
+**부수 발견**: 본 이슈 해결로 ISS-054 (URL 스킴 오류) 가 노출됨.
+**연관 이슈**: ISS-052 (L1+L3 동시 실패 시 (나) 시나리오 자동 복구 불가) — 본 핫픽스가 winston 로그를 보존하여 CS 수동 추적 인프라는 확보.
+**커밋**: `f2f12a84` (master), `c5245d05` (deploy-dev cherry-pick), PR #2401.
+**출처**: 운영 사용자 보고 (2026-04-30, 쿠폰번호 9023123 등록 시 ERROR.22001 노출).
+
+---
+
+### ISS-052: L1+L3 동시 실패 시 (나) 시나리오(쿠프마케팅 쿠폰 소진 + 헬로우봇 미보상) 자동 복구 불가 — CS 수동 처리
+
+| 분류 | edge-case |
+| 발견일 | 2026-04-30 |
+| 심각도 | P2 (CS 발생 빈도에 따라 상향) |
+| 영향 파트 | 서버 |
+| 상태 | 미해결 — CS 유의미 발생 시 구현 |
+
+**현상**: `useCoupon` 의 L1 (사용 요청) axios 가 throw 한 후 보상 호출 L3 (망취소) 마저 axios throw 로 실패하면, 쿠프마케팅 측 상태가 (나) "쿠폰 사용 완료, 응답 미수신" 인 경우 사용자는 보상(하트/스킬)을 받지 못한 채 쿠폰만 소진된 상태로 남는다. 이 상태에서 사용자가 같은 쿠폰을 재시도하면 L0 가 `UseYN=Y` / `8005` 응답하여 "이미 사용된 쿠폰" 토스트가 노출되며 자동 복구 경로가 없음.
+**근본 원인**: L1+L3 동시 실패 시점에는 (가)/(다) (요청 미도달·자체 롤백) vs (나) (처리됐는데 응답 미수신) 를 결정적으로 구분 불가능 — 유일한 진실 소스인 쿠프마케팅 응답을 받지 못하기 때문. 후속 L0 재조회로 사후 구분은 가능하나, 현재는 그 추적/배치 자체가 미구현.
+**현 핫픽스 범위**: 본 이슈는 핫픽스(catch 3곳 saveApiLog 제거) 와 무관 — 핫픽스 후에도 동일하게 잔존. 핫픽스에서는 L3 catch 의 winston 로그를 마스킹된 `couponCode` + `originalAuthCode` + `userSeq` + error stack 으로 보존하여 CloudWatch Logs Insights 기반 CS 추적 최소 보장.
+**대응 방안 (구현 시)**: `coop_marketing_recovery_pending` 신규 테이블 도입 → L3 catch 시점에 행 적재 (`couponCode` 풀 코드, `originalAuthCode`, `userSeq`, `productCode`, `l1ErrorMessage`, `l3ErrorMessage`, `status='pending'`) → 5분 주기 배치 (airflow or k8s CronJob) 가 `pending` 행에 대해 L0 재조회: `UseYN=Y`/`8005` → (나) 확정, L3 자동 재시도 후 보상 발급, `0000` → (가)/(다) 확정, `resolved_no_action` 처리. 자동 처리 한도 초과 시 `failed` 로 마킹하여 CS 수동 큐 진입.
+**판단**: L3 실패 빈도가 미지수이므로 선제 구현은 과도하다고 판단 — 운영 모니터링(CloudWatch winston error 카운트) 으로 CS 건수 추이 관찰 후 유의미한 빈도 발생 시 본 이슈를 P1 으로 격상하여 구현 착수. 발생 시까지는 CS 채널의 수동 처리(쿠폰번호 + 사용 시각으로 쿠프마케팅 측 상태 확인 → 헬로우봇 측 보상 발급) 로 대응.
+**출처**: 핫픽스 검토 중 케이스 ② 결정 (2026-04-30 사용자 협의).
+
+---
+
+### ISS-051: 웹 — 충전 완료 모달(S3) GIF가 세로로 늘어나 보임 (ISS-035 후속)
+
+| 분류 | bug |
+| 발견일 | 2026-04-28 |
+| 심각도 | P2 |
+| 영향 파트 | 웹 |
+| 상태 | 해결 (2026-04-28) — `coopHeartCompletePopup.tsx`에서 `<img>`에 직접 부여하던 `-mx-[24px] w-[288px] h-[140px]`를 **breakout 래퍼 패턴**(`<div className="w-[288px] -mx-[24px]"><img className="w-[288px] h-[140px]" /></div>`)으로 교체. 동일 자산을 정상 렌더하던 `BonusHeartModal`과 동일 구조로 정렬. |
+
+**현상**: ISS-035 웹 해결분(`/images/heart/heart_charge.gif` + plain `<img>`)의 비율이 원본 1184×576(≈2.06)과 달리 세로로 늘어나 보임. 사용자 보고 "세로로 길쭉하게 찌부러져서 나옴".
+**재현**: 하트 충전 쿠폰 등록 → S3 충전 완료 팝업 노출.
+**근본 원인**: Tailwind preflight `img { max-width: 100% }`가 부모 요소 폭(`w-[288px] p-[24px]` 다이얼로그 내부 `w-full` flex 컨테이너 = 240px)에 맞춰 img 너비를 240px로 클램프. `<img>`에 `-mx-[24px] w-[288px]`을 직접 부여해도 `max-width` 클램프가 우선해 너비 240, 높이 140으로 렌더(비율 ≈1.71) → 가로 압축·세로 신장. ISS-035 1차 수정 시 동일 자산을 사용하는 `BonusHeartModal`이 **래퍼 div**(`<div className="w-[288px] -mx-6">`) 안에 `<img>`를 두는 패턴이었음을 누락하고 img 자체에 breakout 클래스를 부여한 것이 원인.
+**해결**: `BonusHeartModal` 패턴과 동일하게 288px 래퍼 div를 도입. 래퍼 div는 preflight 영향을 받지 않아 정상적으로 288px로 확장되며, 그 안의 `<img>`는 부모 폭 288px 기준으로 `max-width: 100%`가 평가되어 `w-[288px] h-[140px]`이 그대로 적용됨.
+**영향 범위**: `app/coupon/components/coopHeartCompletePopup.tsx` 단독. 외부 시그니처/번역/스펙 변경 없음. 다른 화면 회귀 없음.
+**출처**: 사용자 보고 (2026-04-28).
+
+---
+
+### ISS-050: 신규 쿠폰 에러 코드 컨벤션 정합화 — `CM_xxx` 언더바 제거 + `CO_APP_UPDATE_REQUIRED` 통합 + 메시지 어미 통일
+
+| 분류 | enhancement |
+| 발견일 | 2026-04-28 |
+| 심각도 | P2 |
+| 영향 파트 | 서버 (enum/i18n/호출부), iOS (매퍼 키 동기), 데이터(이벤트 스펙 enum), 문서 다수 |
+| 상태 | 해결 (2026-04-28) — 서버·문서·iOS 매퍼·QA xlsx v13 정합 완료. 서버·iOS 동시 배포 후 Step B 회귀 검증만 잔여. 미발화·미배포 단계로 운영 영향 없음. |
+
+**현상**: coop-integration 도입 시 추가된 신규 에러 코드들이 기존 `CO`/`CP` 시리즈 컨벤션과 어긋나 enum 안에 두 컨벤션이 공존했음.
+- 기존: `CO000~CO012` / `CP001~CP011` — `[2글자 prefix][3자리 숫자]`, 언더바 없음, enum 이름은 의미 키워드(`COUPON_NOT_FOUND` 등)
+- 신규(이번 변경 전): `CO_APP_UPDATE_REQUIRED = "CO_APP_UPDATE_REQUIRED"` (숫자 없음·언더바 있음), `CM_001~CM_010` (언더바 있음)
+
+또한 일반 쿠폰(CP)과 의미가 동일한 항목들이 별도 ko 어미("~이에요")로 작성되어 한 사용자가 두 종류 쿠폰을 등록할 때 톤 차이가 노출되는 문제.
+
+**원인**: 본 프로젝트가 신규 시리즈를 도입하면서 기존 enum 컨벤션 검토 없이 자체 패턴(`CM_001`)을 사용. `CO_APP_UPDATE_REQUIRED`는 의미상 기존 `CO012 UPDATE_APP`과 동일한데 별도 코드를 신설.
+
+**결정 사항 (2026-04-28 사용자 결정)**:
+1. 에러 코드 분리(CP vs CM) 유지 — 분기 경로별 관측·대응이 다르므로 도메인 분리 가치 보존.
+2. CM 메시지는 개별 유지하되 의미 일치 항목은 CP 문구를 그대로 채택, 신규 메시지는 CP 어미("~습니다")에 통일.
+3. `CM_xxx` → `CMxxx` (언더바 제거, 동일 형식·동일 자릿수). enum value 자체 변경.
+4. `CO_APP_UPDATE_REQUIRED`는 의미 중복인 기존 `CO012 UPDATE_APP`을 재사용 — 신규 enum 삭제.
+5. enum **이름**도 의미 일치 항목은 CP 접미사와 통일(`CM_INVALID_COUPON` → `CM_COUPON_NOT_FOUND` 등). `CM_` 접두사는 유지.
+6. 운영 미배포 단계라 하위 호환성 무시. Firebase `register_coupon_failure.error_code`도 미발화 상태로 자유 변경.
+
+**enum 매핑**:
+
+| Before | After | 비고 |
+| --- | --- | --- |
+| `CO_APP_UPDATE_REQUIRED = "CO_APP_UPDATE_REQUIRED"` | **삭제** → `UPDATE_APP = "CO012"` 재사용 | 의미 중복 통합 |
+| `CM_INVALID_COUPON = "CM_001"` | `CM_COUPON_NOT_FOUND = "CM001"` | CP001 의미·접미사 통일 |
+| `CM_EXPIRED_COUPON = "CM_002"` | `CM_COUPON_EXPIRED = "CM002"` | CP003 의미·접미사 통일 |
+| `CM_ALREADY_USED_COUPON = "CM_003"` | `CM_COUPON_ALREADY_USED = "CM003"` | CP002 의미·접미사 통일 |
+| `CM_PRODUCT_NOT_FOUND = "CM_004"` | `CM_PRODUCT_NOT_FOUND = "CM004"` | 신규 (이름 유지·value만) |
+| `CM_API_ERROR = "CM_005"` | `CM_API_ERROR = "CM005"` | 〃 |
+| `CM_NETWORK_ERROR = "CM_006"` | `CM_NETWORK_ERROR = "CM006"` | 〃 |
+| `CM_HEART_CHARGE_FAILED = "CM_007"` | `CM_HEART_CHARGE_FAILED = "CM007"` | 〃 |
+| `CM_COUPON_ISSUE_FAILED = "CM_008"` | `CM_COUPON_ISSUE_FAILED = "CM008"` | 〃 |
+| `CM_COUPON_SPEC_NOT_FOUND = "CM_009"` | `CM_COUPON_SPEC_NOT_FOUND = "CM009"` | 〃 |
+| `CM_PAYMENT_CANCELED_COUPON = "CM_010"` | `CM_PAYMENT_CANCELED_COUPON = "CM010"` | 〃 |
+
+**i18n 매핑 (서버 SSOT)**:
+
+| 코드 | ko | ja | en |
+| --- | --- | --- | --- |
+| `CO012` (UPDATE_APP, 재사용) | 앱을 최신 버전으로 업데이트 해주세요 | アプリを最新バージョンにアップデートしてください | Please update the app to the latest version |
+| `CM001` | 쿠폰을 찾을 수 없습니다 | クーポンが見つかりません | Couldn't find the coupon |
+| `CM002` | 만료된 쿠폰입니다 | このクーポンは期限切れです | This coupon has expired |
+| `CM003` | 이미 사용된 쿠폰입니다 | このクーポンはすでに使用されています | This coupon has already been used |
+| `CM004` | 상품을 찾을 수 없습니다 | 商品が見つかりません | Product not found |
+| `CM005` | 일시적인 서비스 오류가 발생했습니다 | 一時的なサービスエラーが発生しました | A temporary service error occurred |
+| `CM006` | 일시적인 통신 오류가 발생했습니다 | 一時的な通信エラーが発生しました | A temporary network error occurred |
+| `CM007` | 하트 충전에 실패했습니다 | ハートのチャージに失敗しました | Failed to charge hearts |
+| `CM008` | 스킬 이용권 발급에 실패했습니다 | スキル利用券の発行に失敗しました | Failed to issue skill coupon |
+| `CM009` | 쿠폰 정보를 찾을 수 없습니다 | クーポン情報が見つかりません | Coupon information not found |
+| `CM010` | 결제가 취소된 쿠폰입니다 | 決済がキャンセルされたクーポンです | Payment for this coupon was canceled |
+
+CM001/002/003은 ko/ja/en 모두 CP001/003/002 문구를 그대로 채택. CM004~010은 ja/en 변경 없음(어미 통일은 ko에만 해당).
+
+**서버 변경 (2026-04-28 /dev-server, 워크트리 적용 완료, tsc 통과)**:
+- `src/common/code.ts` — `CO_APP_UPDATE_REQUIRED` 항목 삭제, `CM_*` enum 이름·value 일괄 변경.
+- `src/locales/{ko,ja,en}.ts` — `CO_APP_UPDATE_REQUIRED` 키 삭제, `CM_001~010` 키 → `CM001~010`, ko 어미 정합화 + ja/en 의미 일치(CM001/002/003) 통일.
+- `src/controllers/coupon.ts` — `ErrorCode.CO_APP_UPDATE_REQUIRED` → `ErrorCode.UPDATE_APP`, 가드 로그 텍스트 갱신.
+- `src/services/coup-marketing.ts` — `CM_INVALID_COUPON`/`CM_EXPIRED_COUPON`/`CM_ALREADY_USED_COUPON` enum 식별자 일괄 교체.
+- `src/services/coupon-register.ts` — JSDoc 주석 + `ErrorCode.CO_APP_UPDATE_REQUIRED` → `ErrorCode.UPDATE_APP`.
+- `src/models/entities/CouponPrefixRule.ts` + 마이그레이션 — `requiresNewFlow` 컬럼 코멘트 텍스트 갱신.
+- 기존 ESLint `@typescript-eslint/ban-types` 경고는 본 변경 범위 밖(기존 코드).
+
+**클라이언트 영향**:
+- iOS — `CouponRegisterErrorMapper`의 폴백 매핑 키 11건(`CM_001~CM_010`, `CO_APP_UPDATE_REQUIRED`) 모두 신규 키(`CM001~CM010`, `CO012`)로 갱신 + 매핑 메시지를 새 i18n 문구와 동기화 필요.
+- Android — `error.message`를 그대로 표시 + `coop_error_generic` 폴백만 유지. 코드 키 매핑 없음 → **변경 없음**.
+- Web — 동일 (서버 메시지 그대로 표시) → **변경 없음**.
+- 데이터(Firebase) — `register_coupon_failure.error_code` enum 표기 갱신만 필요. 발화 시작 전이라 다운스트림 영향 없음.
+
+**남은 과업**: tasks.md ISS-050 항목 참조.
+
+**관련 이슈**:
+- ISS-039/044: 본 변경으로 사라진 `CO_APP_UPDATE_REQUIRED` ja/en은 `CO012` ja/en으로 자연 대체. 두 이슈는 이미 해결 상태이며 후속 영향 없음.
+- ISS-026/045: iOS/Android 폴백 매퍼는 키 변경 후에도 같은 방어 패턴으로 동작. iOS만 키 표 갱신 필요.
+
+---
+
 ### ISS-049: 카카오 100% 할인 쿠폰 결제 거래액 인식 누락 — `spent_cash_amount` 인젝션 정책
 
 | 분류 | enhancement |

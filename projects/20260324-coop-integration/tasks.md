@@ -17,12 +17,21 @@
 
 ## 서버 (/dev-server)
 
+### ISS-050 에러 코드 컨벤션 정합화 (2026-04-28 결정·구현)
+- [x] `src/common/code.ts` — `CO_APP_UPDATE_REQUIRED` 항목 삭제, `CM_001~CM_010` enum value를 `CM001~CM010`로 변경, 의미 일치 enum 이름을 `CP` 접미사와 통일(`CM_INVALID_COUPON`→`CM_COUPON_NOT_FOUND`, `CM_EXPIRED_COUPON`→`CM_COUPON_EXPIRED`, `CM_ALREADY_USED_COUPON`→`CM_COUPON_ALREADY_USED`)
+- [x] `src/locales/{ko,ja,en}.ts` — `CO_APP_UPDATE_REQUIRED` 키 삭제, `CM_001~010` 키 → `CM001~010`, ko 어미 "~이에요"→"~습니다" 정합화 + 의미 일치(CM001/002/003) ja/en은 CP 문구 그대로 채택
+- [x] `src/controllers/coupon.ts` — `ErrorCode.CO_APP_UPDATE_REQUIRED` → `ErrorCode.UPDATE_APP`, 가드 winston 로그 텍스트 갱신
+- [x] `src/services/coop-marketing.ts` — 변경된 enum 식별자 반영 (16개 호출부)
+- [x] `src/services/coupon-register.ts` — `ErrorCode.CO_APP_UPDATE_REQUIRED` → `ErrorCode.UPDATE_APP`, JSDoc 주석 갱신
+- [x] `CouponPrefixRule` Entity + 마이그레이션 코멘트 텍스트 갱신
+- [x] tsc 통과 확인 (eslint `object` 타입 경고는 본 변경 범위 밖 — 2026-04-07 최초 구현분 잔존)
+
 ### Q1 거래액 인식 인젝션 (2026-04-27 결정, ISS-049)
-- [ ] **마이그레이션** — `coop_marketing_product` 에 `current_price INTEGER NULL` 컬럼 추가 (기존 `price` 는 정상가 필수, `current_price` 는 판매가 선택. NULL 시 `price` 사용)
-- [ ] **카카오 쿠폰 식별 메커니즘** — `usedCouponSeq` 로 쿠폰이 카카오 발급(coop_marketing_coupon_usage 매칭) 인지 판별하는 로직 추가
-- [ ] **`pay_for_contents` 발화 시 `spent_cash_amount` 인젝션** — 카카오 쿠폰 결제 흐름에서 `coop_marketing_product.current_price ?? coop_marketing_product.price` 를 `spentCash` 로 전달
-- [ ] **인젝션 트리거 조건 검증** — 100% 할인 결제(`finalPrice == 0`) 외에도 카카오 쿠폰이면 모두 적용할지 vs 0원 결제만 적용할지 정책 결정 후 구현 (현재 카카오 쿠폰은 100% 할인뿐이므로 단기적으로는 동일)
-- [ ] **테스트 환경 검증** — 100% 할인 쿠폰 사용 후 BQ `analytics_164027297.server_events` 의 `pay_for_contents` 이벤트에 `spent_cash_amount` 가 채워졌는지 확인
+- [x] **마이그레이션** — `coop_marketing_product` 에 `current_price INTEGER NULL` 컬럼 추가 (2026-04-28 /dev-server, `1777968000000-AddCurrentPriceToCoopMarketingProduct.ts` + Entity `currentPrice` 필드 + AdminJS 옵션 노출)
+- [x] **카카오 쿠폰 식별 메커니즘** — `CoopMarketingService.findUsageByIssuedCouponSeq(issuedCouponSeq)` 추가 (2026-04-28 /dev-server). `coop_marketing_coupon_usage.issued_coupon_seq` 매칭으로 카카오 발급 여부 판별
+- [x] **`pay_for_contents` 발화 시 `spent_cash_amount` 인젝션** — `purchaseFixedMenu` 의 `sendPayForContentsEvent` 호출 직전에 `resolveCoopSpentCash` 헬퍼로 `coop_marketing_product.current_price ?? price` 를 `{ amount, currency: "KRW" }` 로 전달 (2026-04-28 /dev-server, `src/services/fixed-menu.ts:2583`)
+- [x] **인젝션 트리거 조건 검증** — 카카오 쿠폰(=`coop_marketing_coupon_usage` 매칭)이면 무조건 인젝션. 현재 카카오 쿠폰은 100% 할인뿐이므로 동일 효과. 부분 할인 카카오 쿠폰 도입 시 정책 재논의 필요 (architecture.md §10-2)
+- [ ] **테스트 환경 검증** — 100% 할인 쿠폰 사용 후 BQ `analytics_164027297.server_events` 의 `pay_for_contents` 이벤트에 `spent_cash_amount` 가 채워졌는지 확인 (배포 후 실시)
 
 ### 기존 과업
 - [x] 요구사항 정의 및 기존 시스템 검토
@@ -42,16 +51,74 @@
 - [x] ISS-001: architecture.md §5-2, §5-3, §5-4, §5-5 변경 반영
 - [x] 명칭 변경: coupc-marketing → coop-marketing (파일명, 클래스명, 설정키 등. DB 테이블명은 유지)
 - [x] ISS-003: check API 응답에서 expiryDate 필드 제거 (DTO + Service)
-- [x] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (8003→CM_002, 8005→CM_003, UseYN→CM_003)
+- [x] ISS-004: useCoupon L0 재검증 에러코드를 check와 동일하게 세분화 (8003→CM002, 8005→CM003, UseYN→CM003)
 - [x] ISS-005: admin locale 띄어쓰기 통일 — cancel "사용취소" → "사용 취소"
-- [x] ISS-006: 결제취소 쿠폰(8099) → CM_010 "결제가 취소된 쿠폰입니다" 에러코드 추가
+- [x] ISS-006: 결제취소 쿠폰(8099) → CM010 "결제가 취소된 쿠폰입니다" 에러코드 추가
 - [x] ISS-008: Admin 쿠폰 사용 취소 팝업에 상품 상태 정보 표시 (커스텀 컴포넌트 + custom API)
 - [x] api-spec.md 작성 (클라이언트용 API 명세)
 - [x] client-guide.md 작성 (클라이언트 개발 가이드)
 - [x] ISS-010: CouponDto에 fixedMenuSeq optional 필드 추가 (/api/coupon 응답) — 단일 skillSeqs 보유 쿠폰에 한해 노출
 - [x] ISS-029: AdminJS 사이드바 `Coupon Prefix Rule` 메뉴명 한글화 ("쿠폰 분류 규칙 설정") — `src/admin/locale.ts` labels에 `CouponPrefixRule: "쿠폰 분류 규칙 설정"` 추가 (2026-04-22)
 
+### Firebase 이벤트 응답 DTO 보강 (2026-04-29 결정, D1~D5)
+
+> 결정 근거: [event-spec.md §5](event-spec.md) + [api-spec.md §Response](api-spec.md). 클라이언트 3사가 EVT-2 `register_coupon_success` 의 `coupon_type`/`product_code` 파라미터를 채울 수 있도록 응답 DTO 에 신규 필드 2개 추가. 에러 응답은 변경 없음 (D3=a). 4/30 데드라인 직전이라 최소 침습 보강.
+
+- [x] **`couponType` 필드 추가 (모든 issuedType 공통)** — `CouponRegisterResponseDto` 의 모든 variant(coupon/heart/skill)에 `couponType: "kakao" | "hellobot" | "giftiel"` 항상 포함. 산출: 표준 쿠폰 경로(prefix 미매칭) → `"hellobot"`, coop_marketing 경로 → `"kakao"` 직접 매핑. giftiel 은 prefix rule 시드 도입 시 분기 추가 (현재 미시드 — D3=a 에러 응답 미보강이므로 영향 없음). (2026-04-29 /dev-server, `src/dtos/coupon-register.dto.ts` + `src/services/coupon-register.ts`)
+- [x] **`productCode` 필드 추가 (issuedType=heart/skill 한정)** — 카카오 채널일 때 `coop_marketing_product.product_code` 노출. 매핑: `processHeartCoupon`/`processSkillCoupon` 의 product 객체에서 직접 추출하여 `UseCoopMarketingCouponResponseDto.productCode` 로 전파 → `buildCoopResponse` 가 `productCode ?? null` 직렬화. `findUsageByIssuedCouponSeq` 우회(인-플로우 product 객체 보유로 추가 쿼리 불필요). hellobot/giftiel 응답에는 필드 미포함(coupon variant). (2026-04-29 /dev-server, `src/services/coop-marketing.ts` + `src/dtos/coop-marketing.dto.ts`)
+- [x] **`heartQuantity` 유지** — 변경 없음. paid 100% 적립 정책(Q2 결정) 상 bonus 분리 불필요. `bonusHeartAmount` 등 신규 필드 도입 안 함
+- [x] **api-spec.md 정합 검증** — §Response 의 성공 예시 3건(coupon/heart/skill) + 필드 설명 표가 코드와 일치 (couponType: kakao/hellobot, productCode: HEART_5000/SKILL_VOUCHER_001 예시 동일)
+- [x] **회귀 테스트** — 신규 필드는 모두 추가형(기존 필드 변경 X). 미사용 클라이언트는 JSON 미등록 필드를 자동 무시하므로 동작 영향 없음. 단위 테스트 TC-1 에서 명시적으로 productCode 미포함을 assert 함
+- [x] **통합 테스트 (3 케이스)** — `src/tests/services/coupon-register.test.ts` 신규 (TC-1 표준 쿠폰=hellobot/productCode 미포함, TC-2 카카오 heart=kakao/HEART_5000, TC-3 카카오 skill=kakao/SKILL_VOUCHER_001, TC-4 productCode 누락 시 null 폴백). `npm run tsc` + `npx tsc -p tsconfig.jest.json` 통과 확인 (실행은 사용자가 `npm run test:jest:part src/tests/services/coupon-register.test.ts`)
+
+### 운영 배포 준비 (2026-04-29)
+- [x] 배포 가이드 환경변수 키 정합화 — `COUPC_MARKETING_AUTH_KEY` → `COOP_MARKETING_AUTH_KEY` 잔존 참조 6곳 일괄 갱신 (`backend-design.md`, `backend-guide.md` 4곳, `testing/20260409-api-test-plan.md`, `deployment/dev-deploy-guide.md` 2곳). 코드는 2026-04-14 커밋 `dc9af487`로 이미 정합화 완료, 잔재는 가이드 문서뿐
+- [x] 운영 배포 가이드 신규 작성 — `docs/features/20260324-coupc-marketing-kakao-gift/deployment/prod-deploy-guide.md`. master 머지(회귀 회피), 사전 DB 진단(B-2/B-3), Secrets Manager 운영 등록(`COOP_MARKETING_AUTH_KEY`), 마이그레이션 4건 수동 실행, AdminJS 초기 데이터, 스모크 테스트, 모니터링, 롤백 시나리오, 체크리스트 16항목 포함
+- [x] 설계 가이드 옛 표기(coupc/Coupc/COUPC_MARKETING) 잔재 일괄 정합화 — `backend-design.md` 약 60곳(DDL 테이블/컬럼/인덱스명, Entity/Service 클래스명, SIDEBAR 키, custom API path), `backend-guide.md` 약 60곳(Entity/DTO/Service/Controller 클래스·파일 경로, Service 내부 호출, Admin Options, config 키, 체크리스트). 마이그레이션 식별자 `CreateCoupcMarketing` (3곳, 실제 git 파일명 일치 필요) 보존
+- [ ] 운영 배포 실행 — prod-deploy-guide.md 체크리스트 진행 (사용자 검토 후)
+
+### 운영 핫픽스 #1 — coop-marketing api_log varchar(4) 위반 (2026-04-30, hotfix/coop-error-logging-issue, ISS-053)
+- [x] `src/services/coop-marketing.ts` catch 3곳 (L0:154-164 / L1:312-334 / L3:677-686) — `saveApiLog({resultCode:"TIMEOUT",...})` 제거, `winston.error` 로 stack + masked couponCode + originalAuthCode + userSeq 기록. throw 의미 유지 (L0/L1: `CM_NETWORK_ERROR`, L3: throw 없음 — 보상 케이스). 마이그레이션·entity 변경 없음 (2026-04-30)
+- [x] master PR #2401 → squash merge (commit `f2f12a84`) → 운영 ArgoCD sync 완료 (2026-04-30)
+- [x] deploy-dev 동기화 — cherry-pick (commit `c5245d05`) 완료 (2026-04-30)
+- [x] ISS-052 등록 (L1+L3 동시 실패 시 (나) 시나리오 자동 복구 불가 — CS 유의미 발생 시 구현) (2026-04-30)
+- [x] ISS-053 등록 (해결 상태로 추적성 보장) (2026-04-30)
+
+### 운영 핫픽스 #2 — coop-marketing 운영 URL 스킴 오류 (2026-04-30, hotfix/coop-marketing-url-scheme, ISS-054)
+- [x] `src/common/config.ts:591` 운영 URL 스킴 수정 — `http://authapi.inumber.co.kr:443/AuthUse` → `https://authapi.inumber.co.kr/AuthUse`. dev URL (`http://test.authapi.inumber.co.kr:9999/AuthUse`) 무변경 (2026-04-30)
+- [x] master PR #2403 → squash merge (commit `8372dadc`) → 운영 ArgoCD sync 완료 (2026-04-30)
+- [x] ISS-054 등록 (해결 상태로 추적성 보장) (2026-04-30)
+- [x] 운영 통신 정상 검증 — 사용자 로컬 curl 로 `https://authapi.inumber.co.kr/AuthUse` 호출 시 TLS 1.2 + HTTP/2 200 + 정상 ResultCode 응답 확인 (2026-04-30)
+- [ ] deploy-dev 동기화 — cherry-pick (단순 코드 정합성, dev URL 변경 없어 동작 영향 없음, 우선순위 낮음)
+
+### 운영 핫픽스 #3 — coop-marketing CompCode 환경변수화 (2026-05-05, hotfix/coop-marketing-comp-code-env, ISS-055)
+- [x] `src/common/config.ts:594` `compCode: "A911"` → `compCode: process.env.COOP_MARKETING_COMP_CODE` (기본값 없음, 미설정 시 `undefined` → JSON 직렬화에서 누락되어 쿠프마케팅 측 인증 실패로 즉시 표면화) (2026-05-05)
+- [x] tsc 통과 확인 (tsconfig strict 미적용 — 타입 호환성 영향 없음) (2026-05-05)
+- [ ] EKS 매니페스트 환경변수 등록 — `/dev-infra` 협업, dev `COOP_MARKETING_COMP_CODE=A911` / prod `COOP_MARKETING_COMP_CODE=X259` 추가 (`common-infra-eks-deploy/overlays/hlb/{dev,prod}/[apn1]/api/`)
+- [ ] 배포 순서 준수 — **인프라 매니페스트 머지·sync 선행 → 서버 코드 머지·배포 후행** (역순 시 운영에서 빈 CompCode 송신으로 전 쿠폰 등록 실패)
+- [ ] master PR 생성·머지 → 운영 ArgoCD sync
+- [ ] deploy-dev cherry-pick → dev ArgoCD sync
+- [ ] dev/운영 통신 정상 검증 — 90/91 prefix 쿠폰 등록 → ResultCode `8001` 또는 정상 처리 확인
+
 ## iOS (/dev-ios)
+
+### Firebase 이벤트 발화 (2026-04-29 완료)
+- [x] `view_coupon_register` (EVT-1) — `CouponListViewController.viewDidLoad`에서 `fAnalytics.fire(.viewCouponRegister)` (2026-04-29 /dev-ios)
+- [x] `register_coupon_success` (EVT-2) — `registerCoupon(code:)` onNext 핸들러에서 `coupon_number/coupon_type/issued_type/fixed_menu_seq/heart_amount/latency_ms` 발화 (2026-04-29 /dev-ios) — **2026-04-29 스펙 픽스 후 재조정 필요 (아래)**
+- [x] `register_coupon_failure` (EVT-3) — `registerCoupon(code:)` onError 핸들러에서 `coupon_number/coupon_type/coupon_prefix/error_code/reason/latency_ms` 발화 (2026-04-29 /dev-ios)
+- [x] `latency_ms` 측정 — `.do(onSubscribe:)` 시점에 `Date()` 캡처, 응답/에러 수신 ms 차이 (2026-04-29 /dev-ios)
+- [x] ~~`coupon_type` 추론 규칙 — 성공: heart/skill ⇒ kakao, coupon ⇒ hellobot. 실패: prefix `90/91` ⇒ kakao, 그 외 nil~~ (2026-04-29 D1~D5 픽스로 성공 분기 추론 제거 → 응답 `data.couponType` 직접 매핑. 실패 분기는 prefix 룩업 유지)
+- [ ] DebugView 실기기 발화 검증 (3종 모두) — `-FIRDebugEnabled` 런치 인자 + Firebase 콘솔 DebugView 대조 (배포·QA 단계)
+- [x] **2026-04-29 D1~D5 스펙 픽스 반영** — ① `CouponRegisterResponse` 에 `couponType: String?` + `productCode: String?` 옵셔널 디코딩 추가(서버 보강 PR 머지 전에도 무해). ② `RegisterSuccessPayload.couponType`/`productCode` 응답 직접 매핑(EVT-2 `coupon_type` 추론 로직 제거, D1=a). ③ `RegisterSuccessPayload.heartAmount` → `heartQuantity` 리네임 + 발화 키 `heart_amount` → `heart_quantity` (값은 응답 `heartQuantity` 그대로). ④ `RegisterSuccessPayload.bonusHeartAmount` 필드/발화 키 제거 (D2=a). EVT-3 의 prefix 룩업은 유지(D3=a). 수정 파일: `Hellobot/Feature/Coupon/Network/CouponRegisterResponse.swift`, `Hellobot/Legacy/Analytics/Firebase/HellobotAnalytics + Coupon.swift`, `Hellobot/Feature/Coupon/CouponList/CouponListViewController.swift` (2026-04-29 /dev-ios)
+
+### ISS-050 매퍼 동기 (2026-04-28 완료)
+- [x] `Hellobot/Feature/Coupon/Network/CouponRegisterErrorMapper.swift:21-31` `codeMessages` 사전 키 11건 일괄 갱신: `CM_001~CM_010` → `CM001~CM010`, `CO_APP_UPDATE_REQUIRED` → `CO012` (2026-04-28 /dev-ios)
+- [x] 매퍼 메시지 값 ko 어미 정합화: 어미 "~이에요"→"~습니다" + CM001/002/003은 일반 쿠폰 CP 시리즈 문구 그대로 채택, CO012는 "앱을 최신 버전으로 업데이트 해주세요" (2026-04-28 /dev-ios)
+- [x] ISS-026/039 판정 로직(non-empty 서버 message 우선, 빈/offline 시 codeMessages 폴백) 유지 — 키·값만 교체, 다른 iOS 코드 변경 0건 확인 (2026-04-28 /dev-ios)
+- [ ] 서버·iOS 동시 배포 후 회귀 확인 (배포 시점 도래 시 QA 매트릭스 검증)
+- [ ] (선택) 단위 테스트 추가 — 키 변경 회귀 방지
+
+### 기존 과업
 - [x] 쿠폰 등록 화면에 상품권 코드 판별 로직 연동
 - [x] 하트 충전권 확인 팝업 (S2-A) + 충전 완료 팝업 (S3)
 - [x] 스킬 교환권 확인 팝업 (S2-B) + 토스트 + 이용권 카드 (S4)
@@ -64,7 +131,7 @@
 - [x] ISS-023: 스킬 이용권 카드 하단 "스킬 보러가기 >" 링크를 **우측 정렬**로 수정 — CouponItemCell 하단을 row 레이아웃(좌측 grow wrapper + skillLinkLabel)으로 리팩토링 (2026-04-21)
 - [x] ISS-021 클라이언트 대응: `Coupon.expiresAt: Date?` nullable 전환 — 쿠폰 리스트 디코딩 실패 방지 + 만료일 행 nil 가드 + remainDays Int.max fallback (2026-04-21)
 - [x] ISS-022 클라이언트 대응: `Coupon.expiresAt: Date` (non-null) 복귀 + 신규 `isUnlimited: Bool?` 디코딩 추가 — 카드 UI 만료일/만료임박 행을 `coupon.isUnlimited == true`일 때 숨김 (sentinel 비교 금지). remainDays도 `isUnlimited` 기반 재작성 (2026-04-21)
-- [x] ISS-026: 쿠폰 코드 등록 에러 메시지 표시 로직 수정 — `CouponRegisterErrorMapper` 신설, 서버 `error.message`(ko)에 Hangul 포함 시 그대로 사용하고 빈/영문/네트워크 오류는 client-guide.md S5 ko 상수(CM_001~CM_010, CO_APP_UPDATE_REQUIRED)로 폴백, 오프라인은 "인터넷 연결이 오프라인 상태입니다." 고정 메시지로 치환 (2026-04-21)
+- [x] ISS-026: 쿠폰 코드 등록 에러 메시지 표시 로직 수정 — `CouponRegisterErrorMapper` 신설, 서버 `error.message`(ko)에 Hangul 포함 시 그대로 사용하고 빈/영문/네트워크 오류는 client-guide.md S5 ko 상수(CM001~CM010, CO012)로 폴백, 오프라인은 "인터넷 연결이 오프라인 상태입니다." 고정 메시지로 치환 (2026-04-21)
 - [x] ISS-027: S4 "스킬 보러가기 >" 우측 화살표를 이미지(아이콘) 리소스로 교체 — 텍스트 `>` 제거 + SF Symbol `chevron.right` (violet400 틴트) 이미지뷰 horizontal stack 구성 (2026-04-21)
 
 ## Android (/dev-android)
@@ -146,23 +213,27 @@
 - [ ] **분석 쿼리 템플릿 작성** — KPI 측정 SQL (architecture.md §10-7 본문) 을 운영 대시보드/Slack 알림에 등록
 
 ### 성과 측정 지표 정의 (선행 — 기획/데이터 합의)
-- [x] KPI 정의서 초안 작성 — [planning/success-metrics-kpi.md](planning/success-metrics-kpi.md) (2026-04-22 /analyze)
-- [x] 데이터 엔지니어링 설계서 초안 — [planning/performance-analysis-design.md](planning/performance-analysis-design.md) (2026-04-22 /dev-data)
-- [ ] KPI 정의서 v1.0 확정 — 오픈 이슈 의사결정 후 (performance-analysis-design.md §9 TBD 8건 + success-metrics-kpi.md §6 7건)
-- [ ] 어트리뷰션 규칙 확정 — Q4 카카오 유입자 식별 방식 결정 후 (논의 진행 중)
-- [ ] ~~쿠프마케팅 측 발급/판매 데이터 수령 방식 합의 — CSV/API/정산파일 (§9-3)~~ → Q3 결정: 현재 불필요 (spent_cash 인젝션으로 매출 자동 집계)
+- [x] KPI 정의서 초안 작성 — [planning/success-metrics-kpi.md](planning/success-metrics-kpi.md) (2026-04-22 /analyze) — 2026-04-28 deprecated, [data-measurement-plan.md](data-measurement-plan.md) 로 통합
+- [x] 데이터 엔지니어링 설계서 초안 — [planning/performance-analysis-design.md](planning/performance-analysis-design.md) (2026-04-22 /dev-data) — 2026-04-28 deprecated, [data-measurement-plan.md](data-measurement-plan.md) + [event-spec.md](event-spec.md) 로 분할 흡수
+- [x] **데이터 측정 계획 v1.0 확정** — [data-measurement-plan.md](data-measurement-plan.md) (2026-04-28 /dev-data). Q1·Q2·Q4 결정 통합. Q3 갭은 §7.1 에 옵션 A/B/C 명시 (B 권장)
+- [x] **이벤트 스펙 v1.0 확정** — [event-spec.md](event-spec.md) (2026-04-28 /dev-data). Firebase 클라이언트 이벤트 3종 + 검증 절차
+- [x] 어트리뷰션 규칙 확정 — Q4 결정 (등록일 기준 일/주/월) 완료 ([data-measurement-plan.md §2.1, §6](data-measurement-plan.md))
+- [ ] **Q3 등록 전환율 옵션 확정** — A(KPI 폐기) / B(월 1회 CSV) / C(일일 자동 인입) 중 결정 ([data-measurement-plan.md §7.1](data-measurement-plan.md))
+- [ ] ~~쿠프마케팅 측 발급/판매 데이터 수령 방식 합의 — CSV/API/정산파일~~ → 위 Q3 결정과 통합
 
-### 이벤트 스펙 (서버 연계 필요)
-설계: performance-analysis-design.md §3
-- [ ] 서버 이벤트 3종 publish 구현 (hellobot-server):
-  - `coop_coupon_register_attempt` (진입)
-  - `coop_coupon_register_success` (issuedType, product_code, fixed_menu_seq, latency_ms 등)
-  - `coop_coupon_register_failure` (error_code — CM_001~010, CO_APP_UPDATE_REQUIRED)
-- [ ] 이벤트 화이트리스트 등록 — `hlb_staging.staging_key_events_se_events_list` 3건 INSERT (§9-1 절차 확정 후)
-- [ ] Firebase 이벤트 추가는 Phase 2 검토 (Phase 1 불필요 — 매출·전환은 서버 이벤트로 충분)
+### 이벤트 스펙 (Firebase 클라이언트 — 2026-04-28 결정)
+설계: [event-spec.md](event-spec.md)
+
+서버 이벤트는 발화하지 않음 — DB(`coupon`, `coop_marketing_coupon_usage`, `coop_marketing_api_log`)가 진실 원천. 클라이언트 Firebase 3종만:
+- [x] **iOS** — `view_coupon_register` (화면 진입), `register_coupon_success`, `register_coupon_failure` 발화 구현 (2026-04-29 /dev-ios)
+- [x] **Android** — Firebase 이벤트 3종 발화 신규 구현 (2026-04-29 /dev-android, event-spec.md v1.1 EVT-1/2/3 + D1~D5 결정 반영). 신규 파일 `app/src/main/java/com/thingsflow/hellobot/util/analytics/event/firebase/FirebaseCoupon.kt` (`FirebaseCoupon` sealed class + `ViewCouponRegister`/`RegisterCouponSuccess`/`RegisterCouponFailure` + `companion object` prefix 룩업 유틸 `PREFIX_TO_COUPON_TYPE`/`classifyCouponType`/`extractPrefix`). `CouponListActivity.onCreate` 에서 `savedInstanceState == null` 가드로 EVT-1 발화(회전·재생성 중복 방지). `CouponListViewModel.register` 에서 `requestStartedAt = System.currentTimeMillis()` 캡처 후 `fireRegisterSuccessEvent`/`fireRegisterFailureEvent` 호출, `latencyMs = now - requestStartedAt`. `CouponRegisterResponse` 에 `couponType`/`productCode` 옵셔널 필드 추가(D1=a 서버 보강 PR 머지 시 자동 채워져 발화). 에러 분류 — `parseServerError` + `parseErrorBody` 신설: `HttpException` → 응답 `error.code`(CM001~CM010·CO012·CP*), `IOException` → `NETWORK_ERROR`, 그 외 → `UNKNOWN`. EVT-3 `coupon_type` 은 D3=a(에러 응답 미보강) 따라 클라이언트 prefix 룩업(`90`/`91` → kakao). null 파라미터는 Bundle 키 자체 omit. `:app:ktlintCheck` + `:app:assembleDevDebug` BUILD SUCCESSFUL. **의존**: 서버 D1=a 보강 PR 머지 전엔 EVT-2 의 `coupon_type`/`product_code` 두 파라미터 omit 송신 → 머지 후 클라이언트 변경 없이 자동 채워짐.
+- [x] **Web** — `lib/features/coupon/couponGoogleAnalytics.ts` 신규(채널 분기: `webview.isWebView()` → `webview.logEvent` 또는 `window.gtag('event', ...)`, `skillsGoogleAnalytics.ts` 패턴 동일). `app/coupon/page.tsx` 마운트 1회 `view_coupon_register` 발화. `app/coupon/components/couponCodeRegister.tsx` 등록 버튼 탭 → 응답까지 `performance.now()` 차이로 `latency_ms` 측정 후 success/failure(network·empty body·unsupported issuedType 포함 4분기) 발화. `coupon_type`은 클라이언트 prefix 룩업 표(`90/91→kakao`, `coupon_prefix_rule` 시드 동기)로 도출. **hellobot-webview(Angular)는 발화 추가 없음** — `coupon.component.ts`가 `ngOnInit`에서 즉시 `${origin}/coupon`(Next.js) 리다이렉트만 수행하는 stub이라 화면 미노출, 단일 발화 지점으로 누락 없음. 응답 DTO 한계로 `product_code`(kakao 한정), `bonus_heart_amount`는 키째 누락 — 서버 DTO 보강(아래 항목)과 함께 자동 채워짐. 2026-04-29 /dev-web
+- [ ] **서버 응답 DTO 보강** (2026-04-29 D1~D5 픽스 — 신규 필드 2개) — `POST /api/coupon/register` 성공 응답 `data` 에 ① `couponType` (string, 항상; `kakao`/`hellobot`/`giftiel`), ② `productCode` (string\|null, issuedType=heart/skill 시; 카카오 한정, 일반/giftiel NULL) 추가. `heartQuantity` 유지 (bonus 필드 도입 안 함 — Q2 paid 100% 결정). 에러 응답은 변경 없음 (D3=a). 상세: [api-spec.md §Response](./api-spec.md) + [event-spec.md §5](./event-spec.md). /dev-server 담당
+- [x] **Web — 2026-04-29 D1~D5 스펙 픽스 반영** — `types/coop.ts` 의 `CouponRegisterResponse` 디스크리미네이티드 유니언에 `couponType: 'kakao'|'hellobot'|'giftiel'`(모든 issuedType 공통) + `productCode: string|null`(heart/skill 한정) 필드 추가 (api-spec.md §Response 동기, 신규 `CouponChannelType` 별칭). `couponGoogleAnalytics.ts`: ① `RegisterCouponSuccessParams.couponType` 비-nullable(`CouponChannelType`) — D1=a 응답 직접 사용 의미상 prefix 룩업 폴백 불필요, ② 파라미터 키 `heart_amount` → `heart_quantity` (값 = 응답 `heartQuantity`, D2=a), ③ `productCode` 파라미터 활성화(`undefined` 시 키째 누락 — null 매핑 D4), ④ `bonusHeartAmount` 필드/송신 제거. EVT-3 의 `inferCouponTypeFromPrefix`(`coupon_prefix_rule` 시드 룩업) 유지 — 에러 응답 미보강(D3=a). `couponCodeRegister.tsx`: heart/skill 분기에서 `couponType: data.couponType`, `productCode: data.productCode ?? undefined`, `heartQuantity: data.heartQuantity` 로 매핑(prefix 룩업 폴백 제거). hellobot-webview 는 stub 이므로 영향 없음. `tsc --noEmit` 통과(기존 `details.test.tsx` 1건 pre-existing 무관). **의존**: 서버 응답 DTO 보강 PR 머지 + 배포 후 효과(이전 까지는 `data.couponType` 미정의로 런타임 undefined 송신 — 서버 동시 배포 권장). 2026-04-29 /dev-web
+- [ ] **이벤트 화이트리스트 등록** — `hlb_staging.staging_key_events_fb_events_list` (또는 `events_list`) 에 3건 INSERT
 
 ### BigQuery ETL (common-data-airflow)
-설계: performance-analysis-design.md §4
+설계: [data-measurement-plan.md §6](data-measurement-plan.md) (Q4 마트 변경) + [event-spec.md §9](event-spec.md) (이벤트 후속 마트)
 - [ ] Glue 스냅샷 추가 — `coupc_marketing_coupon_usage`, `coupc_marketing_product` (§9-2)
 - [ ] `staging_coupc_marketing_coupon_usage`, `staging_coupc_marketing_product` SQL + DAG task
 - [ ] `intermediate_coop_coupon_event` SQL — server_events 3종 + product 조인
@@ -174,7 +245,7 @@
 - [ ] 데이터 카탈로그 갱신 — mart-catalog.md, event-catalog.md, metric-dictionary.md (common-data-airflow/docs/hellobot-data/catalog/, 코드 PR 동시 반영 필수)
 
 ### 대시보드/리포트
-설계: performance-analysis-design.md §6
+설계: [planning/launch-performance-report-plan.md](planning/launch-performance-report-plan.md) (R1~R5 운영 계획)
 - [ ] 대시보드 도구 결정 (§9-5 — Looker 권장)
 - [ ] 경영진 월간 대시보드 (신규 구매자/전환율/정산대상액/상품별 Top5)
 - [ ] 운영 일간 대시보드 (등록추이/에러분포/구버전 가드 발동/L1 레이턴시)
@@ -190,17 +261,17 @@
 ## Phase 1 — ISS-011 + ISS-009 해결 (2026-04-19 설계 확정)
 
 > 설계 근거: architecture.md §3/§5, api-spec.md `POST /api/coupon/register`, client-guide.md
-> 해결 이슈: ISS-011(프리픽스 판별 주체 통일), ISS-009(구버전 앱 대응), ISS-013(CM_005 문구 통일), ISS-014(S3 팝업 문서 정합성)
+> 해결 이슈: ISS-011(프리픽스 판별 주체 통일), ISS-009(구버전 앱 대응), ISS-013(CM005 문구 통일), ISS-014(S3 팝업 문서 정합성)
 
 ### 서버 (/dev-server)
 - [x] `CouponPrefixRule` 엔티티 생성 (src/models/entities/CouponPrefixRule.ts) + 마이그레이션 `CreateCouponPrefixRule1776948000000` + 시드 데이터 (90, 91 / coop_marketing). 시드 INSERT는 `thingsflow.` 스키마 prefix 포함 Raw SQL로 작성
 - [x] AdminJS에 `CouponPrefixRule` 관리 페이지 추가 (CRUD, SIDEBAR.COOP_MARKETING)
-- [x] `ErrorCode.CO_APP_UPDATE_REQUIRED` 추가 + i18n ko 메시지 — "앱 업데이트가 필요한 쿠폰이에요." (ja/en은 번역 검수 잔여 — 빈 문자열 placeholder)
+- [x] `ErrorCode.CO012` 추가 + i18n ko 메시지 — "앱 업데이트가 필요한 쿠폰이에요." (ja/en은 번역 검수 잔여 — 빈 문자열 placeholder)
 - [x] `POST /api/coupon/register` 컨트롤러 구현 (src/controllers/coupon.ts에 추가)
 - [x] `CouponRegisterService` 신설 — prefix 분류 → coop/일반 분기 → 원샷 처리
 - [x] Coop 원샷 처리: `CoopMarketingService.registerOneShot` — `checkCoupon` + `useCoupon` 재사용, Redlock(`coop:lock:${code}`) 보상 완료 후 해제 (ISS-015 동시 해소)
 - [x] 폴리모픽 응답 DTO: `CouponRegisterResponseDto` — `resultType: "ISSUED"`/`issuedType: "coupon"|"heart"|"skill"` + `data` 내부 nested 필드 (issuedCoupon 포함)
-- [x] `POST /api/coupon` 진입 가드 추가 — `code`가 비어있지 않은 문자열일 때만 `CouponPrefixRule` 조회 후 requiresNewFlow=true 매칭 시 HTTP 406 `CO_APP_UPDATE_REQUIRED` throw. `couponSpecSeq` 경로 영향 없음
+- [x] `POST /api/coupon` 진입 가드 추가 — `code`가 비어있지 않은 문자열일 때만 `CouponPrefixRule` 조회 후 requiresNewFlow=true 매칭 시 HTTP 406 `CO012` throw. `couponSpecSeq` 경로 영향 없음
 - [x] 가드 발동 로그에 `code` 마스킹 처리 (`CoopMarketingService.maskCouponCode` 재사용)
 - [x] `POST /api/coop/check`, `POST /api/coop/use` Deprecated 주석 (@deprecated JSDoc, Phase 2 제거 조건 명시). 기존 응답 스키마 유지
 - [ ] 로그/메트릭: 가드 발동(프리픽스, 앱버전, userSeq), register resultType별 카운트 — winston.info 기본 로그만 추가됨, 메트릭은 별도 인프라 작업 필요
@@ -247,7 +318,9 @@
 - [ ] Phase 1 서버 배포 후 P1-R01~R05 검증
 - [ ] Phase 1 클라이언트 배포 후 P1-E01, P1-C01/C02 (구버전 회귀) 검증
 - [ ] 동시성 시나리오: P1-R05 (Redlock + usage UNIQUE)
-- [ ] 에러 시나리오: CM_001~CM_010 각 에러별 토스트 메시지 검증 (기존 TC 재활용)
+- [ ] 에러 시나리오: CM001~CM010 각 에러별 토스트 메시지 검증 (기존 TC 재활용)
+- [x] **ISS-050 xlsx v13 생성 (2026-04-28 /qa)**: v12 → v13 — 코드 표기 `CM_001~CM_010`/`CO_APP_UPDATE_REQUIRED` → `CM001~CM010`/`CO012` 일괄, 기대 메시지 컬럼 ko 어미 "~습니다" 정합 + CM001/002/003 ja/en은 CP 시리즈 문구 통일, ISS-050 회귀 TC 추가. v12 감사 추적 보존.
+- [ ] **ISS-050 회귀 검증** (서버·iOS 동시 배포 후): 각 에러 토스트가 v13 기대 ko 문구와 일치 + CM001/002/003은 일반 쿠폰 CP 시리즈와 동일 문구 + 구버전 앱 가드 토스트 = "앱을 최신 버전으로 업데이트 해주세요". ja/en 디바이스 회귀 포함.
 - [x] **TC 커버리지 보강 (2026-04-21 계약 반영)** (2026-04-21 오후): qa-test-cases.md 상단에 "2026-04-21 보강" 섹션 신설 — 7건 추가. qa-test-cases-v11.xlsx 생성 (Flow V 신설, 사용자 시트 54→61건). 전체 145→152건.
   - [x] (a) **ISS-022 isUnlimited 분기** — TC-V-UL01 (만료일 텍스트 미표시), TC-V-UL02 (N일 남음 배지 미표시), TC-V-UL03 (일반 쿠폰 만료일 회귀), TC-V-UL04 (만료 임박 조건 회귀). Web/iOS/Android 매트릭스.
   - [x] (b) **ISS-016 토스트 지속시간 2.5초** — TC-V-TD01. Web/iOS/Android 모두 2.5초 ±0.3초 기대. Android도 2026-04-21 SafeToast(COOP_TOAST_DURATION_MS=2500L) 해결로 통과 기대.
@@ -271,8 +344,8 @@
 
 ### 계약 문서 정합성 (architect)
 - [x] ISS-011: 프리픽스 판별 주체 통일 — 서버 단일 진입점으로 해결 (2026-04-19)
-- [x] ISS-012: api-spec.md 에러코드 표 + client-guide.md 에러 매핑표에 CM_010 포함 확인 완료 (2026-04-19 /review 반영) — 양쪽 모두 CM_010 "결제가 취소된 쿠폰이에요" 기술됨
-- [x] ISS-013: CM_005 사용자 메시지 통일 — "일시적인 서비스 오류가 발생했어요"로 확정, 양쪽 동기화 완료 (2026-04-19)
+- [x] ISS-012: api-spec.md 에러코드 표 + client-guide.md 에러 매핑표에 CM010 포함 확인 완료 (2026-04-19 /review 반영) — 양쪽 모두 CM010 "결제가 취소된 쿠폰이에요" 기술됨
+- [x] ISS-013: CM005 사용자 메시지 통일 — "일시적인 서비스 오류가 발생했어요"로 확정, 양쪽 동기화 완료 (2026-04-19)
 
 ### 기획 문서 정합성 (analyze)
 - [x] ISS-014: screen-plan.md S3 완료 팝업 기술을 design-spec 확정본 기준으로 갱신 — screen-plan.md §3 S3 재작성 완료 (2026-04-19)
@@ -292,9 +365,9 @@
 
 ### 서버 (/dev-server)
 - [x] ISS-029: AdminJS 사이드바 `Coupon Prefix Rule` 메뉴명 한글화 ("쿠폰 분류 규칙 설정") — 위 "## 서버 (/dev-server)" 섹션과 중복 (해당 과업의 분석/구현 시 함께 처리). 2026-04-22 완료
-- [x] ISS-039 (서버 i18n): `CO_APP_UPDATE_REQUIRED` ja/en 메시지 번역 리소스 보강 — `src/locales/en.ts`에 "Please update to the latest version.", `src/locales/ja.ts`에 "アプリを最新バージョンにアップデートしてください" 채움 (2026-04-22)
+- [x] ISS-039 (서버 i18n): `CO012` ja/en 메시지 번역 리소스 보강 — `src/locales/en.ts`에 "Please update to the latest version.", `src/locales/ja.ts`에 "アプリを最新バージョンにアップデートしてください" 채움 (2026-04-22)
 - [ ] ISS-043 (서버 분석): 신규 가입자 스킬이용권 사용 시 스킬 인트로 대신 챗봇 인트로 출력 원인 분석 — **보류 (2026-04-22)**: 사용자 지시로 진행 보류. 분석 결과는 issues.md에 기록됨 (스튜디오 설정 검증/재현 로그 수집이 선행 필요)
-- [x] ISS-044 (서버 i18n): coop-integration 사용자 노출 문구 ja/en 번역 누락 11건 리소스 반영 — `src/locales/ja.ts` / `src/locales/en.ts`의 `CM_001`~`CM_010`(ERROR) + `COUPON_POPUP_TITLE`(CONFIG) 11개 키를 api-spec.md §i18n 번역 세트 표 값으로 치환. 추가로 ko `CM_001`~`CM_010` 표기 친근체("~이에요") 통일(정책 A). TS 컴파일 통과. 본 변경 파일에 lint 위반 없음 (2026-04-23)
+- [x] ISS-044 (서버 i18n): coop-integration 사용자 노출 문구 ja/en 번역 누락 11건 리소스 반영 — `src/locales/ja.ts` / `src/locales/en.ts`의 `CM001`~`CM010`(ERROR) + `COUPON_POPUP_TITLE`(CONFIG) 11개 키를 api-spec.md §i18n 번역 세트 표 값으로 치환. 추가로 ko `CM001`~`CM010` 표기 친근체("~이에요") 통일(정책 A). TS 컴파일 통과. 본 변경 파일에 lint 위반 없음 (2026-04-23)
 
 ### iOS (/dev-ios)
 
@@ -332,7 +405,7 @@
 - [ ] ISS-033 (Android): **A안 확정** — `CoopEvent.GeneralCouponIssued` 신규 케이스 추가. `CouponListViewModel.register` `IssuedType.COUPON` 분기의 `_toastEvent.value = Event(...)`를 `_coopEvent.emit(CoopEvent.GeneralCouponIssued)`로 교체. `CouponListActivity` observeUi에 `is CoopEvent.GeneralCouponIssued -> SafeToast.showToastForDurationMs(ctx, R.string.coupon_description_coupon_registered_successfully, COOP_TOAST_DURATION_MS)` 추가. `_toastEvent` LiveData는 본 이슈 범위 내에서는 유지(다른 사용처 영향 회피)
 
 **ISS-039 — 서버 의존, Android 코드 수정 없음**
-- [ ] ISS-039 (Android, 무코드): 서버 `src/locales/en.ts` / `src/locales/ja.ts` `CO_APP_UPDATE_REQUIRED` 번역 배포 후 **QA 회귀 확인**만 수행. Android `strings.xml` 추가/클라이언트 폴백 추가하지 않음(2026-04-22 결정). 서버 배포 지연되거나 회귀 표면화 시 별도 enhancement로 분리
+- [ ] ISS-039 (Android, 무코드): 서버 `src/locales/en.ts` / `src/locales/ja.ts` `CO012` 번역 배포 후 **QA 회귀 확인**만 수행. Android `strings.xml` 추가/클라이언트 폴백 추가하지 않음(2026-04-22 결정). 서버 배포 지연되거나 회귀 표면화 시 별도 enhancement로 분리
 
 **Step 3 — 사용자 QA 재보고 (1건)**
 - [x] ISS-046 (Android): 스킬 이용권 카드에서 "0하트 이상 결제 시 사용 가능" description 노출 제거 (공간은 reserve) — `CouponItem.kt`에서 `isSkillVoucher = coupon.isUnlimited && coupon.fixedMenuSeq != null` 판별을 Box scope 상단으로 승격(ISS-040 태그 prepend 로직과 공유). description `Text`에 `Modifier.alpha(0f) + clearAndSetSemantics { }`를 조건부 체이닝 — 문구는 투명 처리되나 측정/높이는 유지되어 **카드 높이는 일반 쿠폰과 동일**. 웹 ISS-031 invisible reserve와 정합, iOS ISS-041 collapse와는 플랫폼 차이 잔존(`/architect` design-spec §S4 통일 결정 대기). 신규 import 2건(`androidx.compose.ui.draw.alpha`, `androidx.compose.ui.semantics.clearAndSetSemantics`). 검증 `:app:assembleDevDebug` + `:app:ktlintCheck` BUILD SUCCESSFUL (2026-04-23)
@@ -349,6 +422,7 @@
 - [x] ISS-037 (웹): `CoopSkillVoucherItem` "이용권" 라벨을 `CouponItem` 태그 스타일(`px-[6px]`/`rounded-full`/gray)과 통일. 첫 행 flex `justify-between` 구조로 변경 — 2026-04-22 해결
 - [x] ISS-042 (웹): `couponCodeRegister.tsx` 버튼 내부에 `animate-spin` 인라인 스피너 추가, 풀스크린 `<Loading />` 제거, `aria-busy`/`aria-label` 보강 — 2026-04-22 해결
 - [x] ISS-048 (웹 회귀 확인 + 코드 수정): design-spec §S4 재정의(2026-04-24) 점검 결과 3/4 Pass, (B-2) "스킬 보러가기 링크 `fixedMenuSeq` 단독 조건"이 Fail — 현재 링크는 `CoopSkillVoucherItem`(AND 분기 내부)에서만 렌더되어 `fixedMenuSeq != null && !isUnlimited`("스킬 지정 + 유한 만료") 쿠폰에 링크 미노출. **권장안 채택** — `CouponItem.tsx`에 optional prop `onSkillLinkClick?: (fixedMenuSeq) => void` 추가, 내부에서 `coupon.fixedMenuSeq != null && onSkillLinkClick`일 때 하단 우측 링크 렌더(`CoopSkillVoucherItem`과 동일 inline SVG chevron + `coop_skill_voucher_link` 키 재사용). `app/coupon/page.tsx`에서 `<CouponItem onSkillLinkClick={handleSkillVoucherClick} />` 주입. `types/coupon.ts:20` 주석을 "웹은 미사용" → ISS-048 조건 명시로 갱신. 하단 영역은 좌(만료정보 단독)+우(링크 단독) `space-between` flex, 둘 다 없으면 점선 구분선 포함 블록 전체 미렌더. 향후 "스킬 지정 + 유한 만료" 쿠폰 도입 시 선제 대응. 현 운영 환경 서버 응답에는 해당 쿠폰 타입 없어 QA 재현 불가, 스펙 정합성 선제 보강 — 2026-04-24 해결
+- [x] ISS-051 (웹, ISS-035 후속): S3 충전 완료 모달 GIF 비율 회귀 수정 — `coopHeartCompletePopup.tsx`에서 `<img>`에 직접 부여하던 `-mx-[24px] w-[288px] h-[140px]`이 Tailwind preflight `img { max-width: 100% }`에 의해 부모 폭 240px(다이얼로그 `w-[288px] p-[24px]` 내부 `w-full`) 기준으로 클램프되어 너비 240·높이 140(비율 ≈1.71)으로 렌더, 원본 1184×576(≈2.06) 대비 세로 신장. 동일 자산을 정상 렌더하는 `BonusHeartModal`의 패턴(`<div className="w-[288px] -mx-6"><img /></div>`)과 동일하게 **breakout 래퍼 div** 도입 — 래퍼는 preflight 영향 없이 288px로 확장되고 그 안의 `<img>`는 부모 폭 288px 기준으로 `max-width: 100%`가 평가되어 정상 비율 유지. 단일 파일 수정(`app/coupon/components/coopHeartCompletePopup.tsx`), 외부 시그니처/번역/스펙 변경 없음 — 2026-04-28 해결
 
 ### 진행 방식
 1. **분석 단계** (현재): 각 파트 에이전트(`/dev-server`, `/dev-ios`, `/dev-android`, `/dev-web`)가 담당 이슈를 하나씩 검토 → issues.md 해당 항목 하단에 `**분석 (yyyy-mm-dd 파트)**` 블록으로 근본 원인·해결 방안·영향 범위·예상 리스크 기록

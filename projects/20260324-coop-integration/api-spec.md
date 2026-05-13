@@ -63,6 +63,8 @@ Content-Type: application/json
 
 **응답 구조 (성공)**: 모든 성공 응답은 `resultType: "ISSUED"`로 통일되며, `issuedType`으로 발급된 상품 종류를 구분합니다. `issuedType`별로 추가 필드가 포함됩니다.
 
+> **2026-04-29 (D1~D5 결정)**: 모든 성공 응답에 `couponType` 필드 추가, `heart`/`skill` 응답에 `productCode` 필드 추가. Firebase 이벤트 `register_coupon_success` 의 `coupon_type`/`product_code` 파라미터 소스. 상세: [event-spec.md §5](./event-spec.md). 에러 응답에는 추가하지 않음 (D3=a).
+
 #### 성공 — 일반 쿠폰 발급 (201)
 
 ```json
@@ -70,6 +72,7 @@ Content-Type: application/json
   "data": {
     "resultType": "ISSUED",
     "issuedType": "coupon",
+    "couponType": "hellobot",
     "coupon": {
       "seq": 12345,
       "specSeq": 678,
@@ -90,6 +93,7 @@ Content-Type: application/json
 }
 ```
 
+> `couponType`: `hellobot` \| `giftiel` (해당 채널 매칭 결과). `productCode` 미해당.
 > FeatureFlag `SkillPurchasePromotion` 활성화 시 SINGLE_CODE/MULTI_CODE 타입 쿠폰은 추가로 `data.issuedCoupon` 필드(팝업 표시용)가 포함됩니다. `data` 내부 nested 구조로 통일.
 > DOWNLOAD 타입은 `/api/coupon/register`의 `code` 기반 호출로는 발생하지 않음 (DOWNLOAD는 couponSpecSeq 기반이며 기존 `POST /api/coupon` 사용).
 
@@ -100,11 +104,16 @@ Content-Type: application/json
   "data": {
     "resultType": "ISSUED",
     "issuedType": "heart",
+    "couponType": "kakao",
+    "productCode": "HEART_5000",
     "productName": "카카오 하트 충전권 5천원",
     "heartQuantity": 25
   }
 }
 ```
+
+> `productCode`: `coop_marketing_product.product_code` (카카오 한정 — usedCouponSeq → coop_marketing_coupon_usage → coop_marketing_product 조회로 매핑).
+> `heartQuantity`: `coop_marketing_product.heartQuantity` 그대로 노출. paid 100% 적립이며 bonus 분리 표현 불필요 (Q2 결정).
 
 #### 성공 — 쿠프마케팅 스킬 교환권 (200)
 
@@ -113,6 +122,8 @@ Content-Type: application/json
   "data": {
     "resultType": "ISSUED",
     "issuedType": "skill",
+    "couponType": "kakao",
+    "productCode": "SKILL_VOUCHER_001",
     "productName": "그 사람과 나의 사주 궁합",
     "skillName": "그 사람과 나의 사주 궁합",
     "fixedMenuSeq": 2166,
@@ -128,10 +139,12 @@ Content-Type: application/json
 | --------------- | --------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | resultType      | string          | 항상                   | 고정값 `"ISSUED"`                                                                                                                                                                 |
 | issuedType      | string          | 항상                   | `"coupon"` \| `"heart"` \| `"skill"`                                                                                                                                              |
+| **couponType**  | **string**      | **항상 (2026-04-29 신규)** | **`"kakao"` \| `"hellobot"` \| `"giftiel"`. 입력 코드의 채널 분류. 서버가 `coupon_prefix_rule` 시드 매칭으로 산출. Firebase 이벤트 `register_coupon_success.coupon_type` 의 1차 소스 (D1=a). 에러 응답에는 미포함 (D3=a)** |
+| **productCode** | **string \| null** | **issuedType=heart/skill (2026-04-29 신규)** | **`coop_marketing_product.product_code`. 카카오 한정 (`couponType=kakao`). `hellobot`/`giftiel` 채널은 NULL. usedCouponSeq → coop_marketing_coupon_usage → coop_marketing_product 조회로 매핑. Firebase 이벤트 `register_coupon_success.product_code` 의 1차 소스** |
 | coupon          | CouponDto       | issuedType=coupon      | 기존 쿠폰 DTO 구조 (기존 `POST /api/coupon` 응답과 동일)                                                                                                                          |
 | issuedCoupon    | IssuedCouponDto | issuedType=coupon 일부 | FeatureFlag `SkillPurchasePromotion` 활성 + SINGLE_CODE/MULTI_CODE 타입일 때만 포함. 팝업 표시용 `{ popupTitle, coupons: CouponDto[] }`. `data.issuedCoupon`으로 data 내부에 포함 |
 | productName     | string          | issuedType=heart/skill | 상품명 (쿠프마케팅 상품 이름)                                                                                                                                                     |
-| heartQuantity   | number          | issuedType=heart       | 충전된 하트 수량                                                                                                                                                                  |
+| heartQuantity   | number          | issuedType=heart       | 충전된 하트 수량 (`CoopMarketingProduct.heartQuantity` 그대로). paid 100% 적립이며 bonus 분리 불필요 (Q2 결정).                                                                  |
 | skillName       | string          | issuedType=skill       | 스킬명                                                                                                                                                                            |
 | fixedMenuSeq    | number          | issuedType=skill       | 스킬 식별자 (스킬 상세 페이지 이동용)                                                                                                                                             |
 | chatbotSeq      | number          | issuedType=skill       | 챗봇 식별자                                                                                                                                                                       |
@@ -144,8 +157,8 @@ HTTP 표준 에러 포맷을 사용합니다.
 ```json
 {
   "error": {
-    "code": "CM_001",
-    "message": "유효하지 않은 쿠폰이에요"
+    "code": "CM001",
+    "message": "쿠폰을 찾을 수 없습니다"
   }
 }
 ```
@@ -179,7 +192,7 @@ HTTP 표준 에러 포맷을 사용합니다.
 2. code가 "비어있지 않은 문자열"일 때만 가드 체크:
    - CouponPrefixRule.find WHERE is_active = true AND requires_new_flow = true
    - code.startsWith(prefix) 매칭되는 rule 존재 시
-     → throw HttpError(HTTP 406 NOT_ACCEPTABLE, CO_APP_UPDATE_REQUIRED)
+     → throw HttpError(HTTP 406 NOT_ACCEPTABLE, CO012)
 3. 가드 통과 → 기존 로직 수행 (변경 없음)
 ```
 
@@ -188,8 +201,8 @@ HTTP 표준 에러 포맷을 사용합니다.
 | 요청 입력                               | 가드 동작                            | 결과                                  |
 | --------------------------------------- | ------------------------------------ | ------------------------------------- |
 | `{ couponSpecSeq: 123 }`                | 가드 통과 (code 없음)                | 기존 DOWNLOAD 로직 수행               |
-| `{ couponSpecSeq: 123, code: "91..." }` | **가드 발동**                        | HTTP 406 + CO_APP_UPDATE_REQUIRED     |
-| `{ code: "91..." }`                     | **가드 발동**                        | HTTP 406 + CO_APP_UPDATE_REQUIRED     |
+| `{ couponSpecSeq: 123, code: "91..." }` | **가드 발동**                        | HTTP 406 + CO012     |
+| `{ code: "91..." }`                     | **가드 발동**                        | HTTP 406 + CO012     |
 | `{ code: "ABC123" }` (비매칭)           | 가드 통과                            | 기존 SINGLE_CODE/MULTI_CODE 로직 수행 |
 | `{ code: "" }`                          | 가드 통과 (빈 문자열 검증 대상 아님) | 기존 로직의 파라미터 검증 에러        |
 | `{ }` (둘 다 없음)                      | 가드 통과                            | 기존 로직의 파라미터 검증 에러        |
@@ -199,8 +212,8 @@ HTTP 표준 에러 포맷을 사용합니다.
 ```json
 {
   "error": {
-    "code": "CO_APP_UPDATE_REQUIRED",
-    "message": "앱 업데이트가 필요한 쿠폰이에요."
+    "code": "CO012",
+    "message": "앱을 최신 버전으로 업데이트 해주세요"
   }
 }
 ```
@@ -268,57 +281,62 @@ Request/Response 스키마는 기존과 동일:
 
 ## 에러 코드
 
-| 코드                   | HTTP | 발생 대상                                                            | 설명                                                                                                    | 사용자 안내                         |
-| ---------------------- | ---- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| CO_APP_UPDATE_REQUIRED | 406  | `/api/coupon` 가드 / `/api/coupon/register` (미지원 타입, 확장 대비) | 구버전 앱에서 신규 쿠폰(90/91 프리픽스) 입력 또는 현재 클라이언트 버전이 지원하지 않는 신규 coupon_type | "앱 업데이트가 필요한 쿠폰이에요."  |
-| CM_001                 | 400  | `/api/coupon/register` (coop 플로우)                                 | 유효하지 않은 쿠폰                                                                                      | "유효하지 않은 쿠폰이에요"          |
-| CM_002                 | 400  | `/api/coupon/register` (coop 플로우)                                 | 기간 만료 쿠폰                                                                                          | "기간이 만료된 쿠폰이에요"          |
-| CM_003                 | 400  | `/api/coupon/register` (coop 플로우)                                 | 이미 사용된 쿠폰                                                                                        | "이미 사용된 쿠폰이에요"            |
-| CM_004                 | 404  | `/api/coupon/register` (coop 플로우)                                 | 상품 매핑 없음                                                                                          | "상품을 찾을 수 없어요"             |
-| CM_005                 | 400  | `/api/coupon/register` (coop 플로우)                                 | 쿠프마케팅 L1 외부 서비스 오류                                                                          | "일시적인 서비스 오류가 발생했어요" |
-| CM_006                 | 500  | `/api/coupon/register` (coop 플로우)                                 | 쿠프마케팅 API 통신 오류 (타임아웃 등)                                                                  | "일시적인 통신 오류가 발생했어요"   |
-| CM_007                 | 500  | `/api/coupon/register` (coop 플로우)                                 | 하트 충전 실패 (L2 자동 취소)                                                                           | "하트 충전에 실패했어요"            |
-| CM_008                 | 500  | `/api/coupon/register` (coop 플로우)                                 | 스킬 이용권 발급 실패 (L2 자동 취소)                                                                    | "스킬 이용권 발급에 실패했어요"     |
-| CM_009                 | 500  | `/api/coupon/register` (coop 플로우)                                 | 쿠폰 스펙 없음 (내부 용어)                                                                              | "쿠폰 정보를 찾을 수 없어요"        |
-| CM_010                 | 400  | `/api/coupon/register` (coop 플로우)                                 | 결제 취소된 쿠폰 (쿠프마케팅 8099)                                                                      | "결제가 취소된 쿠폰이에요"          |
+| 코드   | enum 식별자                  | HTTP | 발생 대상                                                            | 설명                                                                                                    | 사용자 안내                         |
+| ------ | ---------------------------- | ---- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| CO012  | `UPDATE_APP`                 | 406  | `/api/coupon` 가드 / `/api/coupon/register` (미지원 타입, 확장 대비) | 구버전 앱에서 신규 쿠폰(90/91 프리픽스) 입력 또는 현재 클라이언트 버전이 지원하지 않는 신규 coupon_type | "앱을 최신 버전으로 업데이트 해주세요" |
+| CM001  | `CM_COUPON_NOT_FOUND`        | 400  | `/api/coupon/register` (coop 플로우)                                 | 유효하지 않은 쿠폰 (L0 응답 매핑)                                                                       | "쿠폰을 찾을 수 없습니다"           |
+| CM002  | `CM_COUPON_EXPIRED`          | 400  | `/api/coupon/register` (coop 플로우)                                 | 기간 만료 쿠폰                                                                                          | "만료된 쿠폰입니다"                 |
+| CM003  | `CM_COUPON_ALREADY_USED`     | 400  | `/api/coupon/register` (coop 플로우)                                 | 이미 사용된 쿠폰                                                                                        | "이미 사용된 쿠폰입니다"            |
+| CM004  | `CM_PRODUCT_NOT_FOUND`       | 404  | `/api/coupon/register` (coop 플로우)                                 | 상품 매핑 없음                                                                                          | "상품을 찾을 수 없습니다"           |
+| CM005  | `CM_API_ERROR`               | 400  | `/api/coupon/register` (coop 플로우)                                 | 쿠프마케팅 L1 외부 서비스 오류                                                                          | "일시적인 서비스 오류가 발생했습니다" |
+| CM006  | `CM_NETWORK_ERROR`           | 500  | `/api/coupon/register` (coop 플로우)                                 | 쿠프마케팅 API 통신 오류 (타임아웃 등)                                                                  | "일시적인 통신 오류가 발생했습니다" |
+| CM007  | `CM_HEART_CHARGE_FAILED`     | 500  | `/api/coupon/register` (coop 플로우)                                 | 하트 충전 실패 (L2 자동 취소)                                                                           | "하트 충전에 실패했습니다"          |
+| CM008  | `CM_COUPON_ISSUE_FAILED`     | 500  | `/api/coupon/register` (coop 플로우)                                 | 스킬 이용권 발급 실패 (L2 자동 취소)                                                                    | "스킬 이용권 발급에 실패했습니다"   |
+| CM009  | `CM_COUPON_SPEC_NOT_FOUND`   | 500  | `/api/coupon/register` (coop 플로우)                                 | 쿠폰 스펙 없음 (내부 용어)                                                                              | "쿠폰 정보를 찾을 수 없습니다"      |
+| CM010  | `CM_PAYMENT_CANCELED_COUPON` | 400  | `/api/coupon/register` (coop 플로우)                                 | 결제 취소된 쿠폰 (쿠프마케팅 8099)                                                                      | "결제가 취소된 쿠폰입니다"          |
 
-> CM*001~CM_010은 모두 **coop_marketing 타입 쿠폰(90/91 프리픽스) 처리 시에만** 발생. 일반 쿠폰(issuedType=coupon) 처리 시에는 기존 쿠폰 발급 에러(`CO*\*`, `PARAMETER_ERROR` 등)가 반환됩니다.
+> **컨벤션 (2026-04-28 ISS-050 정합화)**: 코드 형식 `[2글자 prefix][3자리 숫자]` (언더바 없음). 의미가 일반 쿠폰(`CP`)과 겹치는 항목은 enum 접미사·메시지 문구를 `CP` 시리즈와 통일. 구버전 앱 가드는 별도 코드 없이 `CO012(UPDATE_APP)` 재사용.
+> CM001~CM010은 모두 **coop_marketing 타입 쿠폰(90/91 프리픽스) 처리 시에만** 발생. 일반 쿠폰(issuedType=coupon) 처리 시에는 기존 쿠폰 발급 에러(`CP001~CP011`, `PARAMETER_ERROR` 등)가 반환됩니다.
 
 ### CM 에러 발생 시점
 
 | 에러   | 발생 단계    | 설명                                                            |
 | ------ | ------------ | --------------------------------------------------------------- |
-| CM_001 | L0 조회 응답 | ResultCode ≠ "0000" (그 외)                                     |
-| CM_002 | L0 조회 응답 | ResultCode = "8003" 또는 EndDay < 현재일자                      |
-| CM_003 | L0 조회 응답 | ResultCode = "8005" 또는 UseYN = "Y"                            |
-| CM_004 | 상품 매핑    | ProductCode에 매핑된 `coupc_marketing_product` 없음 또는 비활성 |
-| CM_005 | L1 사용 응답 | ResultCode ≠ "0000"                                             |
-| CM_006 | L0/L1        | 쿠프마케팅 API 타임아웃/네트워크 오류                           |
-| CM_007 | 상품 지급    | HeartService.chargeHeart() 실패 (자동 L2 취소)                  |
-| CM_008 | 상품 지급    | CouponService 쿠폰 발급 실패 (자동 L2 취소)                     |
-| CM_009 | 상품 지급    | 스킬 상품의 couponSpecSeq에 해당하는 CouponSpec 없음            |
-| CM_010 | L0 조회 응답 | ResultCode = "8099" (결제 취소)                                 |
+| CM001 | L0 조회 응답 | ResultCode ≠ "0000" (그 외)                                     |
+| CM002 | L0 조회 응답 | ResultCode = "8003" 또는 EndDay < 현재일자                      |
+| CM003 | L0 조회 응답 | ResultCode = "8005" 또는 UseYN = "Y"                            |
+| CM004 | 상품 매핑    | ProductCode에 매핑된 `coupc_marketing_product` 없음 또는 비활성 |
+| CM005 | L1 사용 응답 | ResultCode ≠ "0000"                                             |
+| CM006 | L0/L1        | 쿠프마케팅 API 타임아웃/네트워크 오류                           |
+| CM007 | 상품 지급    | HeartService.chargeHeart() 실패 (자동 L2 취소)                  |
+| CM008 | 상품 지급    | CouponService 쿠폰 발급 실패 (자동 L2 취소)                     |
+| CM009 | 상품 지급    | 스킬 상품의 couponSpecSeq에 해당하는 CouponSpec 없음            |
+| CM010 | L0 조회 응답 | ResultCode = "8099" (결제 취소)                                 |
 
-### i18n 번역 세트 (ko/ja/en 확정, 2026-04-23)
+### i18n 번역 세트 (ko/ja/en 확정, 2026-04-28 ISS-050 갱신)
 
-> **범위**: coop-integration 관련 사용자 노출 문구 중 ja/en 미번역 상태였던 11건(ERROR 10 + CONFIG 1)에 대한 확정 번역.
-> **상태**: 본 표는 **스펙 확정판** — 서버 코드(`src/locales/{ko,ja,en}.ts`) 반영은 `/dev-server` 후속 과업으로 진행. 관련 이슈: ISS-044.
-> **배경 원인**: i18next `fallbackLng: "ko"`는 대상 로케일에 **빈 문자열**이 있으면 유효 번역으로 간주해 fallback이 발동하지 않음. 따라서 미정의(placeholder)와 빈 문자열은 동일하게 누락 취급이 필요.
+> **범위**: coop-integration 관련 사용자 노출 문구 — ERROR 10건(`CM001`~`CM010`) + CONFIG 1건(`COUPON_POPUP_TITLE`).
+> **상태**: 본 표는 **스펙 확정판**이며 서버 코드(`src/locales/{ko,ja,en}.ts`)에 적용 완료(2026-04-28).
+> **갱신 사유 (ISS-050)**: 신규 코드 컨벤션 정합화에 따라 (1) ko 어미를 기존 `CP` 시리즈와 동일한 "~습니다" 정중체로 통일, (2) 의미가 `CP`와 겹치는 `CM001`/`CM002`/`CM003`은 ko/ja/en 모두 `CP` 문구를 그대로 채택. 구버전 앱 가드용 `CO_APP_UPDATE_REQUIRED`는 의미 중복인 기존 `CO012(UPDATE_APP)`를 재사용하도록 통합 — 본 표에서 제외.
+> **배경 (i18next fallback)**: `fallbackLng: "ko"`는 대상 로케일에 **빈 문자열**이 있으면 유효 번역으로 간주해 fallback이 발동하지 않음. 미정의(placeholder)와 빈 문자열은 동일하게 누락 취급이 필요.
 
 #### ERROR (`errorLocalize` — HTTP 응답 `error.message`에 직접 실림)
 
-| 코드     | ko                                | ja                                   | en                                   |
-| -------- | --------------------------------- | ------------------------------------ | ------------------------------------ |
-| `CM_001` | 유효하지 않은 쿠폰이에요          | 無効なクーポンです                   | Invalid coupon code                  |
-| `CM_002` | 기간이 만료된 쿠폰이에요          | 期限切れのクーポンです               | This coupon has expired              |
-| `CM_003` | 이미 사용된 쿠폰이에요            | すでに使用されたクーポンです         | This coupon has already been used    |
-| `CM_004` | 상품을 찾을 수 없어요             | 商品が見つかりません                 | Product not found                    |
-| `CM_005` | 일시적인 서비스 오류가 발생했어요 | 一時的なサービスエラーが発生しました | A temporary service error occurred   |
-| `CM_006` | 일시적인 통신 오류가 발생했어요   | 一時的な通信エラーが発生しました     | A temporary network error occurred   |
-| `CM_007` | 하트 충전에 실패했어요            | ハートのチャージに失敗しました       | Failed to charge hearts              |
-| `CM_008` | 스킬 이용권 발급에 실패했어요     | スキル利用券の発行に失敗しました     | Failed to issue skill coupon         |
-| `CM_009` | 쿠폰 정보를 찾을 수 없어요        | クーポン情報が見つかりません         | Coupon information not found         |
-| `CM_010` | 결제가 취소된 쿠폰이에요          | 決済がキャンセルされたクーポンです   | Payment for this coupon was canceled |
+| 코드    | ko                                  | ja                                       | en                                   |
+| ------- | ----------------------------------- | ---------------------------------------- | ------------------------------------ |
+| `CM001` | 쿠폰을 찾을 수 없습니다             | クーポンが見つかりません                 | Couldn't find the coupon             |
+| `CM002` | 만료된 쿠폰입니다                   | このクーポンは期限切れです               | This coupon has expired              |
+| `CM003` | 이미 사용된 쿠폰입니다              | このクーポンはすでに使用されています     | This coupon has already been used    |
+| `CM004` | 상품을 찾을 수 없습니다             | 商品が見つかりません                     | Product not found                    |
+| `CM005` | 일시적인 서비스 오류가 발생했습니다 | 一時的なサービスエラーが発生しました     | A temporary service error occurred   |
+| `CM006` | 일시적인 통신 오류가 발생했습니다   | 一時的な通信エラーが発生しました         | A temporary network error occurred   |
+| `CM007` | 하트 충전에 실패했습니다            | ハートのチャージに失敗しました           | Failed to charge hearts              |
+| `CM008` | 스킬 이용권 발급에 실패했습니다     | スキル利用券の発行に失敗しました         | Failed to issue skill coupon         |
+| `CM009` | 쿠폰 정보를 찾을 수 없습니다        | クーポン情報が見つかりません             | Coupon information not found         |
+| `CM010` | 결제가 취소된 쿠폰입니다            | 決済がキャンセルされたクーポンです       | Payment for this coupon was canceled |
+
+> `CM001`/`CM002`/`CM003` ko/ja/en은 일반 쿠폰 `CP001`/`CP003`/`CP002` 문구와 동일.
+> `CO012(UPDATE_APP)` 메시지(별도 표 미게시)는 기존 정의대로 `ko: "앱을 최신 버전으로 업데이트 해주세요"` / `ja: "アプリを最新バージョンにアップデートしてください"` / `en: "Please update the app to the latest version"`.
 
 #### CONFIG (`configLocalize` — 응답 DTO 필드에 주입)
 
@@ -328,17 +346,17 @@ Request/Response 스키마는 기존과 동일:
 
 #### 번역 원칙
 
-- **ja**: 정중한 です/ます체, 문말 마침표 미사용(!는 허용). 기존 `NC001`, `CO_APP_UPDATE_REQUIRED` 톤 계승.
-- **en**: 간결한 평서문, 문말 마침표 사용. `CO_APP_UPDATE_REQUIRED` 톤 계승.
-- **내부 용어 노출 금지**: "L0/L1", "쿠프마케팅", "spec/스펙" 등. `CM_009`의 ko는 기존 "쿠폰 스펙을 찾을 수 없어요"에서 **"쿠폰 정보를 찾을 수 없어요"로 정비(2026-04-23)** — "스펙"이라는 내부 용어 제거. ja/en도 동일 의미로 "クーポン情報 / Coupon information" 사용.
-- **CM_008 en 용어 선택 (2026-04-23)**: "Failed to issue skill **coupon**"으로 확정 (voucher 대신 coupon 채택). 서비스 용어가 전반적으로 "coupon"으로 통일되어 있는 맥락과 정합.
-- **ko 문구 표기법**: 본 스펙은 ko 서버 리소스 현행 "~입니다" 대비 더 사용자 친화적인 "~이에요" 형태로 통일(기존 api-spec.md 표기 기준). 서버 코드 ko 리소스를 본 표기로 통일할지는 `/dev-server`가 후속 판단.
+- **ko**: `CP` 시리즈와 동일한 "~습니다" 정중체로 통일 (ISS-050, 2026-04-28). 의미 일치 코드는 `CP` 문구를 그대로 채택해 한 사용자가 두 종류 쿠폰을 등록할 때 톤 차이가 노출되지 않도록 보장.
+- **ja**: 정중한 です/ます체, 문말 마침표 미사용(!는 허용). 기존 `NC001`, `CO012` 톤 계승.
+- **en**: 간결한 평서문, 문말 마침표 사용. `CO012` 톤 계승.
+- **내부 용어 노출 금지**: "L0/L1", "쿠프마케팅", "spec/스펙" 등. `CM009`의 ko는 기존 "쿠폰 스펙을 찾을 수 없어요"에서 **"쿠폰 정보를 찾을 수 없습니다"로 정비** — "스펙"이라는 내부 용어 제거. ja/en도 동일 의미로 "クーポン情報 / Coupon information" 사용.
+- **CM008 en 용어 선택**: "Failed to issue skill **coupon**"으로 확정 (voucher 대신 coupon 채택). 서비스 용어가 전반적으로 "coupon"으로 통일되어 있는 맥락과 정합.
 
 #### 노출 플로우 매핑 (ja/en 대상자가 실제로 볼 수 있는지)
 
 | 키                   | 일본/영문 사용자 노출 가능                                                                                                                                                                                         | 비고                                                                                                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CM_001`~`CM_010`    | **가능** (제한적) — 카카오 선물하기 자체는 KR 한정이지만, 앱 언어를 ja/en으로 설정한 KR 사용자가 Coop 쿠폰을 등록할 때 본 에러가 응답됨. `error.message`가 언어 헤더 기반으로 반환되므로 ja/en 토스트가 실제 발생. | 클라이언트는 서버 응답을 그대로 토스트에 표출(ISS-026 iOS 폴백 로직은 서버가 빈값/영문일 때 ko로 대체하는 workaround). 본 번역 적용 시 iOS 폴백 분기 자체가 비활성되며 서버값이 그대로 표시됨. |
+| `CM001`~`CM010`    | **가능** (제한적) — 카카오 선물하기 자체는 KR 한정이지만, 앱 언어를 ja/en으로 설정한 KR 사용자가 Coop 쿠폰을 등록할 때 본 에러가 응답됨. `error.message`가 언어 헤더 기반으로 반환되므로 ja/en 토스트가 실제 발생. | 클라이언트는 서버 응답을 그대로 토스트에 표출(ISS-026 iOS 폴백 로직은 서버가 빈값/영문일 때 ko로 대체하는 workaround). 본 번역 적용 시 iOS 폴백 분기 자체가 비활성되며 서버값이 그대로 표시됨. |
 | `COUPON_POPUP_TITLE` | **가능** (일상적) — 일반 쿠폰 발급은 Coop과 무관하게 전 로케일에서 발생(배너/이벤트/Admin 수기 발급 등). 현재 ja/en에 ko 문자열이 그대로 들어 있어 명백한 결함.                                                    | Coop 플로우와 독립된 코어 기능. 본 번역은 **정책상 필수** — ja/en 번역 적용이 맞다는 의견(추가 확인 불필요).                                                                                   |
 
 ### 관련 이슈
@@ -373,7 +391,7 @@ Request/Response 스키마는 기존과 동일:
     │
     ├── coupon_type = 미지원
     │     │
-    │     → throw HttpError(406, CO_APP_UPDATE_REQUIRED)
+    │     → throw HttpError(406, CO012)
     │     (현재 시점엔 발생 경로 없음 — 미래 대비)
     │
     └── 매칭 없음 (일반 쿠폰)
@@ -392,7 +410,7 @@ Request/Response 스키마는 기존과 동일:
 [0] 프리픽스 가드
     code.startsWith(rule.prefix) WHERE requires_new_flow = true
     │
-    ├── 매칭 → throw HttpError(406, CO_APP_UPDATE_REQUIRED)
+    ├── 매칭 → throw HttpError(406, CO012)
     │       → 구버전 앱의 기존 에러 토스트로 표시
     │
     └── 매칭 없음 → 기존 로직 (변경 없음)
@@ -425,7 +443,7 @@ Request/Response 스키마는 기존과 동일:
 
 ### 중복 사용 방지
 
-- 동일 쿠폰번호를 같은 유저가 다시 사용하면 쿠프마케팅 API에서 "이미 사용된 쿠폰" 응답 (CM_003)
+- 동일 쿠폰번호를 같은 유저가 다시 사용하면 쿠프마케팅 API에서 "이미 사용된 쿠폰" 응답 (CM003)
 - `coupc_marketing_coupon_usage` 테이블에 `(user_seq, coupon_code)` UNIQUE 제약
 - 서버 내부에서 Redlock으로 동시 요청 차단
 
@@ -438,8 +456,8 @@ Request/Response 스키마는 기존과 동일:
 ### 구버전 앱 호환
 
 - 구버전 앱은 여전히 `POST /api/coupon` 호출 (신규 API 모름)
-- 90/91 프리픽스 입력 시 서버 가드가 `CO_APP_UPDATE_REQUIRED`(HTTP 406) 반환
-- 구버전 앱의 기존 에러 토스트 로직이 `message`를 그대로 표시 → "앱 업데이트가 필요한 쿠폰이에요."
+- 90/91 프리픽스 입력 시 서버 가드가 `CO012`(HTTP 406) 반환
+- 구버전 앱의 기존 에러 토스트 로직이 `message`를 그대로 표시 → "앱을 최신 버전으로 업데이트 해주세요"
 
 ---
 
@@ -481,13 +499,15 @@ Request/Response 스키마는 기존과 동일:
 
 | 날짜       | 변경자                      | 변경 내용                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 확인                                                  |
 | ---------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 2026-04-23 | /analyze                    | **ISS-044 문구 정합화** — 사용자 직접 수정(`CM_009` ko "쿠폰 스펙"→"쿠폰 정보" 내부 용어 제거, `CM_008` en "voucher"→"coupon" 용어 통일) 에 맞춰 문서 전체 동기화: §에러 코드 표 CM_009 "사용자 안내" 및 "설명" 컬럼 갱신(내부 용어 주석 추가), §번역 원칙 블록에 정비 이력 추가, 응답 예시 `popupTitle` 값을 CONFIG 표(`쿠폰을 받았어요!`)와 일치시킴. client-guide.md CM_009 메시지 행 동기 갱신. issues.md ISS-044 "스펙 보강" 블록 정리.                                                                                                                                                 | /dev-server 구현 대기                                 |
-| 2026-04-23 | /analyze                    | **ISS-044 스펙 반영** — §에러 코드 하위에 "i18n 번역 세트 (ko/ja/en 확정, 2026-04-23)" 섹션 신설. ERROR 10건(`CM_001`~`CM_010`) + CONFIG 1건(`COUPON_POPUP_TITLE`) ja/en 번역 확정. 번역 원칙(ja: です/ます 마침표 미사용, en: 평서문 마침표 사용, 내부 용어 금지) + 노출 플로우 매핑 표 포함. 서버 코드 반영은 /dev-server 후속 과업(ISS-044).                                                                                                                                                                                                       | /dev-server 구현 대기                                 |
+| 2026-04-29 | /dev-data                   | **응답 DTO 보강 — Firebase 이벤트 파라미터 의존성 (D1~D5 결정)**: `POST /api/coupon/register` 성공 응답 `data` 에 신규 필드 2개 추가. ① **`couponType`** (string, 항상): `"kakao"` \| `"hellobot"` \| `"giftiel"` — 모든 issuedType 공통. 서버가 `coupon_prefix_rule` 시드 매칭으로 산출. Firebase 이벤트 `register_coupon_success.coupon_type` 의 1차 소스 (D1=a). ② **`productCode`** (string \| null, issuedType=heart/skill): `coop_marketing_product.product_code` — 카카오 한정 (`couponType=kakao`). usedCouponSeq → coop_marketing_coupon_usage → coop_marketing_product 조회로 매핑. 일반/giftiel 채널은 NULL. 에러 응답에는 `couponType` 추가하지 않음 (D3=a). `heartQuantity` 는 그대로 유지 (D2=a — paid 100% 적립이며 bonus 분리 불필요). event-spec.md §3.2/§5/§11 동반 갱신. | 서버 구현 대기 + 클라이언트 3사 매핑 적용 대기 |
+| 2026-04-28 | /dev-server                 | **ISS-050 코드 컨벤션 정합화** — (1) 코드 형식 `CM_001~CM_010` → `CM001~CM010`(언더바 제거). (2) `CO_APP_UPDATE_REQUIRED` 항목 삭제 후 의미 중복인 기존 `CO012(UPDATE_APP)`로 통합. (3) enum 이름 의미 일치 항목 `CP` 접미사와 통일(`CM_INVALID_COUPON`→`CM_COUPON_NOT_FOUND`, `CM_EXPIRED_COUPON`→`CM_COUPON_EXPIRED`, `CM_ALREADY_USED_COUPON`→`CM_COUPON_ALREADY_USED`). (4) ko 메시지 어미 "~이에요" → "~습니다"로 정합화 + 의미 일치(`CM001`/`CM002`/`CM003`)는 ko/ja/en 모두 `CP001`/`CP003`/`CP002` 문구 그대로 채택. §에러 코드 표 + §i18n 번역 세트 + 본문 응답 예시(line 148, 203, 447) 동기 갱신. 서버 코드 적용 완료. | iOS 매퍼 동기 + 클라이언트 회귀 + QA 메시지 비교 |
+| 2026-04-23 | /analyze                    | **ISS-044 문구 정합화** — 사용자 직접 수정(`CM009` ko "쿠폰 스펙"→"쿠폰 정보" 내부 용어 제거, `CM008` en "voucher"→"coupon" 용어 통일) 에 맞춰 문서 전체 동기화: §에러 코드 표 CM009 "사용자 안내" 및 "설명" 컬럼 갱신(내부 용어 주석 추가), §번역 원칙 블록에 정비 이력 추가, 응답 예시 `popupTitle` 값을 CONFIG 표(`쿠폰을 받았어요!`)와 일치시킴. client-guide.md CM009 메시지 행 동기 갱신. issues.md ISS-044 "스펙 보강" 블록 정리.                                                                                                                                                 | /dev-server 구현 대기                                 |
+| 2026-04-23 | /analyze                    | **ISS-044 스펙 반영** — §에러 코드 하위에 "i18n 번역 세트 (ko/ja/en 확정, 2026-04-23)" 섹션 신설. ERROR 10건(`CM001`~`CM010`) + CONFIG 1건(`COUPON_POPUP_TITLE`) ja/en 번역 확정. 번역 원칙(ja: です/ます 마침표 미사용, en: 평서문 마침표 사용, 내부 용어 금지) + 노출 플로우 매핑 표 포함. 서버 코드 반영은 /dev-server 후속 과업(ISS-044).                                                                                                                                                                                                       | /dev-server 구현 대기                                 |
 | 2026-04-21 | /architect                  | **ISS-022 시정 설계** — ISS-021 구현이 호환성 원칙 위반. `CouponDto.expiresAt`은 **항상 Date(non-null) 복귀**, 무제한 쿠폰은 sentinel `2099-12-31T23:59:59.000Z` + 신규 optional `isUnlimited: boolean` 필드로 표현. DB NULL/쿼리 변경은 그대로 유지 (의미 보존 + 영구 쿠폰 리스트 노출). 신버전 클라이언트는 `isUnlimited === true`이면 만료일 행 숨김, 구버전은 sentinel 표시 (사용 정상). 모든 버전 디코딩 호환.                                                                                                                                   | 서버 재구현 + iOS/Android/Web `isUnlimited` 대응 대기 |
 | 2026-04-21 | /dev-server                 | **ISS-021 해결 (이후 ISS-022로 시정)**: `CouponDto.expiresAt` 타입 `Date` → `Date \| null` (null = 무제한). `calculateCouponExpiresAt`이 `usableDays`/`usableEndDate` 모두 미설정 시 null 반환. `findUsableCoupon(s)` 조건을 `expires_at IS NULL OR expires_at > NOW()`로 변경(NULL = 영구 사용 가능). Coop 스킬 spec 자동 생성 시 `usableDays = null` (기존 36500). 신규 발급분은 즉시 NULL로 발급. 기 발급분(dev)은 1회성 수동 SQL 보정. **호환성 위반(ISS-022)으로 본 변경 중 DTO 직렬화 부분만 ISS-022 안으로 재구현 예정. DB/쿼리 변경은 유지.** | ISS-022로 후속 처리                                   |
-| 2026-04-19 | /dev-server                 | **Phase 1 서버 구현 완료** — `CouponPrefixRule` 엔티티/마이그레이션(시드 90/91 → coop_marketing), `ErrorCode.CO_APP_UPDATE_REQUIRED`+i18n(ko 확정, ja/en placeholder), `POST /api/coupon/register` + `CouponRegisterService`, `CoopMarketingService.registerOneShot` (Redlock + check + use 원샷, 보상 완료 후 lock 해제), `POST /api/coupon` code 경로 가드(HTTP 406), AdminJS `CouponPrefixRule` 등록, `/api/coop/*` `@deprecated` JSDoc. `/api/coop/*` 동작 변경 없음. TS/ESLint 통과.                                                             | 클라이언트(웹/iOS/Android) 구현 대기                  |
-| 2026-04-19 | /review 반영                | **설계 보완** (리뷰 발견 사항 반영): 응답 포맷 섹션 신설 — `/api/coupon/register`는 `data` 내부 nested 구조 통일(issuedCoupon 포함), `/api/coupon`은 기존 하이브리드 구조 유지 명시. `/api/coupon` 이중 경로(code/couponSpecSeq) 테이블 추가 — 가드는 code 경로에만 적용. 가드 발동 조건 상세 테이블 추가(6가지 입력 케이스별). 에러코드 표에 CM_001~CM_010 "(coop 플로우)" 명시 — 일반 쿠폰 플로우에서는 발생 안 함. Deprecated API 섹션에 Phase 1 동작 명시(기존 스키마 유지, @deprecated 주석만 추가) + Phase 2 정량 제거 조건.                    | 전파트 구현 예정                                      |
-| 2026-04-19 | /architect                  | **API 전면 개편** (ISS-011, ISS-009 해결): `POST /api/coupon/register` 신규 단일 진입점 추가 (폴리모픽 성공 응답 `resultType: "ISSUED"` + `issuedType: "coupon"\|"heart"\|"skill"`). 에러는 HTTP 표준 포맷 `{ error: { code, message } }` 사용. `POST /api/coupon`에 프리픽스 가드 추가 (구버전 앱 대응, `CO_APP_UPDATE_REQUIRED` 신규 에러코드). `/api/coop/check`, `/api/coop/use`는 Deprecated (Phase 2에서 제거).                                                                                                                                 | 전파트 구현 예정                                      |
+| 2026-04-19 | /dev-server                 | **Phase 1 서버 구현 완료** — `CouponPrefixRule` 엔티티/마이그레이션(시드 90/91 → coop_marketing), `ErrorCode.CO012`+i18n(ko 확정, ja/en placeholder), `POST /api/coupon/register` + `CouponRegisterService`, `CoopMarketingService.registerOneShot` (Redlock + check + use 원샷, 보상 완료 후 lock 해제), `POST /api/coupon` code 경로 가드(HTTP 406), AdminJS `CouponPrefixRule` 등록, `/api/coop/*` `@deprecated` JSDoc. `/api/coop/*` 동작 변경 없음. TS/ESLint 통과.                                                             | 클라이언트(웹/iOS/Android) 구현 대기                  |
+| 2026-04-19 | /review 반영                | **설계 보완** (리뷰 발견 사항 반영): 응답 포맷 섹션 신설 — `/api/coupon/register`는 `data` 내부 nested 구조 통일(issuedCoupon 포함), `/api/coupon`은 기존 하이브리드 구조 유지 명시. `/api/coupon` 이중 경로(code/couponSpecSeq) 테이블 추가 — 가드는 code 경로에만 적용. 가드 발동 조건 상세 테이블 추가(6가지 입력 케이스별). 에러코드 표에 CM001~CM010 "(coop 플로우)" 명시 — 일반 쿠폰 플로우에서는 발생 안 함. Deprecated API 섹션에 Phase 1 동작 명시(기존 스키마 유지, @deprecated 주석만 추가) + Phase 2 정량 제거 조건.                    | 전파트 구현 예정                                      |
+| 2026-04-19 | /architect                  | **API 전면 개편** (ISS-011, ISS-009 해결): `POST /api/coupon/register` 신규 단일 진입점 추가 (폴리모픽 성공 응답 `resultType: "ISSUED"` + `issuedType: "coupon"\|"heart"\|"skill"`). 에러는 HTTP 표준 포맷 `{ error: { code, message } }` 사용. `POST /api/coupon`에 프리픽스 가드 추가 (구버전 앱 대응, `CO012` 신규 에러코드). `/api/coop/check`, `/api/coop/use`는 Deprecated (Phase 2에서 제거).                                                                                                                                 | 전파트 구현 예정                                      |
 | 2026-04-18 | /architect (via /workspace) | GET /api/coupon 응답 `CouponDto`에 `fixedMenuSeq?: number` optional 필드 추가 — ISS-010 대응                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 전파트 구현 완료                                      |
 | 2026-04-18 | /dev-server                 | GET /api/coupon 서버 구현 완료 — `CouponCondition.skillSeqs` 길이가 1인 경우에만 `fixedMenuSeq` 노출. DB/마이그레이션 무변경                                                                                                                                                                                                                                                                                                                                                                                                                          |                                                       |
 | 2026-04-18 | /dev-ios, /dev-android      | ISS-010 클라이언트 구현 완료 — iOS: Coupon/CouponModel 필드 추가 + CouponListViewController 바인딩, Android: CouponData.fixedMenuSeq + onClick 핸들러                                                                                                                                                                                                                                                                                                                                                                                                 |                                                       |

@@ -12,7 +12,7 @@
 - **서버 단일 진입점 (쿠폰 코드 등록 경로 한정)** — 사용자가 쿠폰 코드 문자열을 입력해 등록하는 플로우는 `POST /api/coupon/register` 하나로 통일. 서버가 DB 기반 `coupon_prefix_rule` 규칙으로 쿠폰 종류를 분류.
 - **1단계 원샷 처리** — 쿠프마케팅 쿠폰도 check+use를 서버가 한 번의 요청으로 처리 (사용자 확인 팝업 없음).
 - **폴리모픽 성공 응답** — `resultType: "ISSUED"` + `issuedType: "coupon" | "heart" | "skill"` 구분.
-- **구버전 앱 호환** — 기존 `POST /api/coupon`의 **code 기반 경로**에 프리픽스 가드 추가. 90/91 입력 시 HTTP 406 + `CO_APP_UPDATE_REQUIRED` 에러로 토스트 안내.
+- **구버전 앱 호환** — 기존 `POST /api/coupon`의 **code 기반 경로**에 프리픽스 가드 추가. 90/91 입력 시 HTTP 406 + `CO012` 에러로 토스트 안내.
 - **확장성** — 신규 프리픽스/제휴사 추가 시 `coupon_prefix_rule` 테이블 row 추가만으로 대응 (앱 업데이트 불필요).
 
 ### 기존 `POST /api/coupon`의 이중 경로 이해 (중요)
@@ -124,20 +124,20 @@
     │                             │
     │                             │  throw HttpError(
     │                             │    406,
-    │                             │    CO_APP_UPDATE_REQUIRED
+    │                             │    CO012
     │                             │  )
     │                             │
     │  에러 응답 (HTTP 406)         │
     │ { error: {                  │
-    │   code: "CO_APP_UPDATE_REQUIRED",
-    │   message: "앱 업데이트가 필요한 쿠폰이에요."
+    │   code: "CO012",
+    │   message: "앱을 최신 버전으로 업데이트 해주세요"
     │ }}                          │
     │◀───────────────────────────│
     │                             │
     │  기존 에러 토스트 로직이       │
     │  message를 그대로 표시        │
-    │  → 사용자: "앱 업데이트가      │
-    │            필요한 쿠폰이에요."  │
+    │  → 사용자: "앱을 최신 버전으로 │
+    │            업데이트 해주세요"  │
 ```
 
 ---
@@ -188,7 +188,7 @@ coupc_marketing_product          (상품 정의)
 | prefix | VARCHAR(20) | 쿠폰 코드 프리픽스 (예: `"90"`, `"91"`) |
 | coupon_type | VARCHAR(50) | 쿠폰 타입 식별자 (예: `"coop_marketing"`) — 처리 핸들러 라우팅 키 |
 | is_active | BOOLEAN default true | 활성 여부 (false면 매칭 무시) |
-| requires_new_flow | BOOLEAN default true | 기존 `POST /api/coupon` 진입 시 가드 발동 여부 (true면 구버전 앱에 `CO_APP_UPDATE_REQUIRED` 반환) |
+| requires_new_flow | BOOLEAN default true | 기존 `POST /api/coupon` 진입 시 가드 발동 여부 (true면 구버전 앱에 `CO012` 반환) |
 | created_at | TIMESTAMPTZ default now() | 생성 시각 |
 | updated_at | TIMESTAMPTZ default now() | 수정 시각 |
 
@@ -274,7 +274,7 @@ coupc_marketing_product          (상품 정의)
    - CouponPrefixRule.find({ isActive: true }) (캐싱 조회)
    - code.startsWith(rule.prefix) 매칭
    ├─ 매칭 + couponType === "coop_marketing" → 5-2 coop 플로우
-   ├─ 매칭 + 미지원 couponType → throw HttpError(406, CO_APP_UPDATE_REQUIRED)
+   ├─ 매칭 + 미지원 couponType → throw HttpError(406, CO012)
    └─ 매칭 없음 → 5-3 일반 쿠폰 플로우
 ```
 
@@ -285,25 +285,25 @@ coupc_marketing_product          (상품 정의)
 2. L0 조회 API 호출 (CoopMarketingService.checkCoupon 재사용)
    L0 응답 검증:
    - ResultCode ≠ "0000" → 에러 분기:
-       - 8003 → CM_002 (기간 만료)
-       - 8005 → CM_003 (이미 사용)
-       - 8099 → CM_010 (결제 취소)
-       - 그 외 → CM_001 (유효하지 않음)
-   - UseYN = "Y" → CM_003
-   - 타임아웃/네트워크 오류 → CM_006
+       - 8003 → CM002 (기간 만료)
+       - 8005 → CM003 (이미 사용)
+       - 8099 → CM010 (결제 취소)
+       - 그 외 → CM001 (유효하지 않음)
+   - UseYN = "Y" → CM003
+   - 타임아웃/네트워크 오류 → CM006
 3. ProductCode로 coupc_marketing_product 조회
-   - 매핑 없음 또는 비활성 → CM_004
+   - 매핑 없음 또는 비활성 → CM004
 4. L1 사용 승인 요청
-   - L1 타임아웃 → L3 망취소 시도 → 에러 반환 (CM_006)
-   - L1 실패 → 에러 반환 (CM_005)
+   - L1 타임아웃 → L3 망취소 시도 → 에러 반환 (CM006)
+   - L1 실패 → 에러 반환 (CM005)
 5. L1 성공 → usage UPSERT (status: "used")
    - INSERT 또는 ON CONFLICT (user_seq, coupon_code) → UPDATE
    - usage를 상품 지급보다 먼저 기록 (누수 방지)
 6. 상품 지급:
    - [heart] HeartService.chargeHeart(userSeq, heartQuantity, ChargeByGiftCoupon)
-       - 실패 → L2 자동 취소 + usage UPDATE (status: "canceled") → CM_007
+       - 실패 → L2 자동 취소 + usage UPDATE (status: "canceled") → CM007
    - [skill] CouponService.issueCoupon(userSeq, couponSpecSeq)
-       - 실패 → L2 자동 취소 + usage UPDATE (status: "canceled") → CM_008
+       - 실패 → L2 자동 취소 + usage UPDATE (status: "canceled") → CM008
 7. usage에 heartLogSeq 또는 issuedCouponSeq 업데이트
 8. Redlock 해제
 9. 응답 반환:
@@ -353,7 +353,7 @@ coupc_marketing_product          (상품 정의)
    조건: code가 "비어있지 않은 유효한 문자열" 이고,
          CouponPrefixRule.find({ isActive: true, requiresNewFlow: true }) 중
          code.startsWith(rule.prefix) 매칭되는 rule 존재
-   → throw HttpError(NOT_ACCEPTABLE/406, CO_APP_UPDATE_REQUIRED)
+   → throw HttpError(NOT_ACCEPTABLE/406, CO012)
 3. 가드 통과 → 기존 CouponService.issueCoupon(context, couponSpecSeq, code) 실행 (변경 없음)
 ```
 
@@ -408,7 +408,7 @@ coupc_marketing_product          (상품 정의)
 
 **Phase 1 (ISS-011/009 해결) 구현 대상**:
 - `CouponPrefixRule` 엔티티 + 마이그레이션 + 시드 데이터
-- `CO_APP_UPDATE_REQUIRED` 에러코드 + i18n(ko/ja/en)
+- `CO012` 에러코드 + i18n(ko/ja/en)
 - `POST /api/coupon/register` 컨트롤러 + 서비스
 - `POST /api/coupon` 진입 가드
 - `/api/coop/check`, `/api/coop/use` Deprecated 주석 (Phase 2에서 삭제)
@@ -485,7 +485,7 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
 #### 에러 처리 (S5)
 
 - 모든 에러는 HTTP 4xx/5xx + 표준 포맷(`{ error: { code, message } }`) — 기존 에러 토스트 로직 재사용
-- `CO_APP_UPDATE_REQUIRED`(HTTP 406)는 신버전에는 도달하지 않음 (가드는 기존 `/api/coupon` 경로에만 존재)
+- `CO012`(HTTP 406)는 신버전에는 도달하지 않음 (가드는 기존 `/api/coupon` 경로에만 존재)
 - 토스트 스타일: 검정 반투명 배경, 하단 중앙, 2.5초 자동 사라짐
 
 #### 중복 탭 방지 (필수)
@@ -516,8 +516,8 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
 | 쿠폰번호 프리픽스 | 90, 91 (DB `coupon_prefix_rule` 시드 데이터로 관리 — 추가 시 AdminJS에서 row 추가) |
 | 쿠폰 형식 판별 | **서버 단일 진입점** (`POST /api/coupon/register`) — DB 규칙 기반 분류. 클라이언트는 하드코딩된 프리픽스 분기 없음 (ISS-011 해결: 2026-04-19) |
 | 쿠폰 등록 단계 | **1단계 원샷** — 쿠프마케팅 쿠폰도 서버가 check+use를 한 번에 처리. 사용자 확인 팝업(S2) 제거 (ISS-011 해결: 2026-04-19) |
-| 구버전 앱 대응 | 기존 `POST /api/coupon`의 **code 경로** 진입 가드 — 90/91 프리픽스 입력 시 HTTP 406 + `CO_APP_UPDATE_REQUIRED` 에러코드. `couponSpecSeq` 경로는 영향 없음. 메시지: "앱 업데이트가 필요한 쿠폰이에요." 기존 에러 토스트 로직이 자동 표시 (ISS-009 해결: 2026-04-19) |
-| 신버전 클라이언트 APP_UPDATE_REQUIRED 수신 시 | `POST /api/coupon/register` 응답으로도 `CO_APP_UPDATE_REQUIRED`(HTTP 406) 수신 가능 — 미래에 서버가 신규 `couponType`(예: 새 제휴사 플로우)을 추가했으나 해당 클라이언트 버전이 지원 못 하는 경우. 구버전과 동일 에러 메시지 "앱 업데이트가 필요한 쿠폰이에요." 표시. 현 시점 Phase 1에서는 발생 경로 없음 (확장 대비) |
+| 구버전 앱 대응 | 기존 `POST /api/coupon`의 **code 경로** 진입 가드 — 90/91 프리픽스 입력 시 HTTP 406 + `CO012` 에러코드. `couponSpecSeq` 경로는 영향 없음. 메시지: "앱을 최신 버전으로 업데이트 해주세요" 기존 에러 토스트 로직이 자동 표시 (ISS-009 해결: 2026-04-19) |
+| 신버전 클라이언트 APP_UPDATE_REQUIRED 수신 시 | `POST /api/coupon/register` 응답으로도 `CO012`(HTTP 406) 수신 가능 — 미래에 서버가 신규 `couponType`(예: 새 제휴사 플로우)을 추가했으나 해당 클라이언트 버전이 지원 못 하는 경우. 구버전과 동일 에러 메시지 "앱을 최신 버전으로 업데이트 해주세요" 표시. 현 시점 Phase 1에서는 발생 경로 없음 (확장 대비) |
 | 스킬 교환 방식 | 100% 할인 쿠폰 발급 → 기존 구매 플로우로 0하트 구매 |
 | 취소 정책 | 콘텐츠형 상품 — 사용 후 취소 불가, 내부 오류 시에만 자동 L2 |
 | 에러 표시 | 팝업 → 토스트로 변경 (Figma 확정) |
@@ -545,7 +545,7 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
    - CouponPrefixRule 엔티티 + 마이그레이션 + 시드
    - POST /api/coupon/register 신규 엔드포인트
    - POST /api/coupon 가드 추가
-   - CO_APP_UPDATE_REQUIRED 에러코드 + i18n
+   - CO012 에러코드 + i18n
    - 기존 /api/coop/check, /api/coop/use는 유지 (deprecated 주석만)
    ↓
    서버 프로덕션 배포 완료 + 헬스체크 + 스모크 테스트 확인
@@ -586,7 +586,10 @@ register API → `issuedType: "skill"` 성공 시 (확인 팝업 없이 바로):
 
 ## 10. 데이터 분석 설계
 
-> 본 섹션은 카카오 쿠폰 사용 결제의 거래액·매출 인식 방식과 관련 파이프라인 정책을 기록합니다. 자세한 분석 설계(이벤트 스펙·마트 변경·SQL 템플릿)는 [planning/performance-analysis-design.md](./planning/performance-analysis-design.md) 를 함께 참조.
+> **이전됨** — 본 섹션 내용 전체가 [data-measurement-plan.md](./data-measurement-plan.md) 으로 이전. KPI 정의·거래액 인식 정책(Q1)·하트 충전권(Q2)·카카오 유입자 식별(Q4)·갭/보류는 거기서 SSOT.
+
+<details>
+<summary>이전 전 본문 (2026-04-28 까지) — 보존용</summary>
 
 ### 10-1. 거래액 인식 정책 — `spent_cash_amount` 인젝션 (2026-04-27 결정)
 
@@ -729,12 +732,169 @@ ORDER BY event_date DESC;
 - 출시 4/30, D+1 (5/1) 부터 카카오 데이터 측정 가능
 - 분석 시작 일자(5/11)까지 안정화 기간 확보
 
+</details>
+
+---
+
+## 11. 쿠폰 등록 이벤트 스펙 (2026-04-28 결정)
+
+> **이전됨** — 본 섹션 내용 전체가 [event-spec.md](./event-spec.md) 으로 이전. Firebase 클라이언트 이벤트 3종(`view_coupon_register`, `register_coupon_success`, `register_coupon_failure`)의 발화 시점·파라미터·화이트리스트·검증 절차는 거기서 SSOT.
+
+<details>
+<summary>이전 전 본문 (2026-04-28 까지) — 보존용</summary>
+
+쿠폰 등록 funnel(진입 → 성공/실패)을 측정하기 위한 이벤트 3종. **모두 클라이언트(Firebase) 발화** — 서버 트랜잭션은 이미 `coupon` / `coop_marketing_coupon_usage` / `coop_marketing_api_log` 테이블에 진실 원천이 있으므로 이벤트 중복 불필요. 단, 클라이언트는 서버 응답 DTO 에서 파라미터 값을 읽어 발화한다.
+
+### 11-1. 이벤트 명명 컨벤션
+
+- 화면 이벤트는 `view_*` (Firebase 자동 수집 보강), 액션 이벤트는 동사 시작 (`register_*`, `pay_for_*`, `touch_*`).
+- `coupon_type` 파라미터(`kakao` | `hellobot` | `giftiel`)로 채널 분류 — 이벤트명에 채널을 박지 않음.
+- 3채널 통합 단일 진입점(`POST /api/coupon/register`)이므로 채널과 무관하게 동일 이벤트.
+
+### 11-2. 이벤트 정의
+
+#### EVT-1. `view_coupon_register` (화면 진입)
+
+| 항목 | 값 |
+|------|----|
+| 발화 주체 | 클라이언트 (iOS/Android/Web Firebase) |
+| 발화 시점 | 쿠폰 등록 화면(iOS `CouponListViewController` / Android `CouponListActivity` / Web `/coupon`) 진입 시 1회 |
+| 데이터셋 | `analytics_164027297.events_*` |
+| 파라미터 | (없음 — Firebase 자동 수집 user_id, platform 만 사용) |
+
+#### EVT-2. `register_coupon_success` (등록 성공)
+
+| 항목 | 값 |
+|------|----|
+| 발화 주체 | 클라이언트 (iOS/Android/Web Firebase) |
+| 발화 시점 | `POST /api/coupon/register` 200 응답 직후 |
+| 데이터셋 | `analytics_164027297.events_*` |
+
+| 파라미터 | 타입 | 필수 | 소스 (응답 DTO) | 설명 |
+|---|---|---|---|---|
+| `coupon_number` | string | ✅ | (클라이언트 입력값) | 입력한 쿠폰번호. 분석용 1:1 대사 |
+| `coupon_type` | string | ✅ | `prefixRule.couponType` 또는 응답 분기 | `kakao` \| `hellobot` \| `giftiel` |
+| `issued_type` | string | ✅ | 응답 `issuedType` | `heart` \| `skill` |
+| `product_code` | string | conditional | 응답 `productCode` | 카카오 한정. 일반/giftiel 쿠폰은 미전달 |
+| `fixed_menu_seq` | int | conditional | 응답 `fixedMenuSeq` | 스킬 교환권일 때만 |
+| `heart_amount` | int | conditional | 응답 `heartAmount` | 하트 충전권일 때만 |
+| `bonus_heart_amount` | int | conditional | 응답 `bonusHeartAmount` | 하트 충전권일 때만 |
+| `latency_ms` | int | ✅ | 클라이언트 측정 | 등록 버튼 탭 → 응답 수신까지 ms |
+
+#### EVT-3. `register_coupon_failure` (등록 실패)
+
+| 항목 | 값 |
+|------|----|
+| 발화 주체 | 클라이언트 (iOS/Android/Web Firebase) |
+| 발화 시점 | `POST /api/coupon/register` non-200 응답 또는 네트워크 에러 직후 |
+| 데이터셋 | `analytics_164027297.events_*` |
+
+| 파라미터 | 타입 | 필수 | 소스 | 설명 |
+|---|---|---|---|---|
+| `coupon_number` | string | ✅ | (클라이언트 입력값) | |
+| `coupon_type` | string | nullable | prefixRule 매칭 결과 또는 응답 | prefix 매칭 실패 시 NULL — 분석은 `coupon_prefix` 보조 필드로 |
+| `coupon_prefix` | string | ✅ | (클라이언트 입력값 앞 2자리) | `coupon_type` NULL 일 때 보조 분류 |
+| `error_code` | string | ✅ | 응답 `code` 또는 클라이언트 분류 | `CM001`~`CM010`, `CO012`, `NETWORK_ERROR`, `UNKNOWN` 등. 분석·대시보드 1차 키 |
+| `reason` | string | ✅ | 응답 `message` 또는 에러 객체 | 자유 텍스트. CS 케이스별 문맥 파악용 |
+| `latency_ms` | int | ✅ | 클라이언트 측정 | |
+
+### 11-3. 이벤트 화이트리스트 등록 (3건)
+
+```sql
+INSERT INTO `hellobot-f445c.hlb_staging.staging_key_events_fb_events_list` (event_name) VALUES
+  ('view_coupon_register'),
+  ('register_coupon_success'),
+  ('register_coupon_failure');
+-- 또는 `events_list` 에 등록 (1차 게이트와 OR 처리이므로 한 곳이면 통과)
+```
+
+### 11-4. 서버 의존성
+
+클라이언트가 EVT-2 파라미터를 채울 수 있도록 **응답 DTO 보강 필요**:
+
+| 응답 필드 | 현재 상태 | 필요 보강 |
+|---|---|---|
+| `issuedType` | 이미 존재 (architecture.md §3) | — |
+| `productCode` | 카카오 응답에만 — 확인 필요 | 미포함 시 추가 |
+| `fixedMenuSeq` | 스킬 교환권 응답에 존재 | — |
+| `heartAmount`, `bonusHeartAmount` | 하트 충전권 응답에 존재 (확인 필요) | 미포함 시 추가 |
+| `code`, `message` (에러) | 표준 에러 포맷 존재 | — |
+
+> 서버 측 보강 과업은 [tasks.md §서버](./tasks.md) 에 추가. 응답 DTO 점검은 [api-spec.md](./api-spec.md) 에서 수행.
+
+### 11-5. 분석 쿼리 예시
+
+**일별 등록 funnel (전환율)**:
+```sql
+WITH events AS (
+  SELECT
+    DATE(TIMESTAMP_MICROS(event_timestamp), 'Asia/Seoul') AS event_date,
+    event_name,
+    user_id,
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key='coupon_type') AS coupon_type,
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key='error_code')  AS error_code
+  FROM `hellobot-f445c.analytics_164027297.events_*`
+  WHERE _TABLE_SUFFIX BETWEEN '20260501' AND '20260531'
+    AND event_name IN ('view_coupon_register','register_coupon_success','register_coupon_failure')
+)
+SELECT
+  event_date,
+  COUNT(DISTINCT IF(event_name='view_coupon_register', user_id, NULL))            AS viewers,
+  COUNTIF(event_name='register_coupon_success')                                   AS success,
+  COUNTIF(event_name='register_coupon_failure')                                   AS failure,
+  SAFE_DIVIDE(COUNTIF(event_name='register_coupon_success'),
+              COUNTIF(event_name IN ('register_coupon_success','register_coupon_failure'))) AS success_rate
+FROM events
+GROUP BY event_date
+ORDER BY event_date;
+```
+
+**카카오 채널 등록 분포 (상품별)**:
+```sql
+SELECT
+  (SELECT value.string_value FROM UNNEST(event_params) WHERE key='product_code') AS product_code,
+  COUNT(*) AS register_count
+FROM `hellobot-f445c.analytics_164027297.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20260501' AND '20260531'
+  AND event_name = 'register_coupon_success'
+  AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key='coupon_type') = 'kakao'
+GROUP BY product_code
+ORDER BY register_count DESC;
+```
+
+**에러 코드 분포 (운영 R1 일일 리포트)**:
+```sql
+SELECT
+  (SELECT value.string_value FROM UNNEST(event_params) WHERE key='error_code') AS error_code,
+  COUNT(*) AS occurrences
+FROM `hellobot-f445c.analytics_164027297.events_*`
+WHERE _TABLE_SUFFIX = FORMAT_DATE('%Y%m%d', CURRENT_DATE('Asia/Seoul') - 1)
+  AND event_name = 'register_coupon_failure'
+GROUP BY error_code
+ORDER BY occurrences DESC;
+```
+
+### 11-6. 마트 반영 (후속)
+
+- `intermediate_coop_coupon_event.sql` 신규 — 3종 이벤트 + `coop_marketing_product` 조인으로 분석용 view
+- `mart_coop_coupon_usage.sql` 신규 — 그레인: 쿠폰 1장. `is_new_user`, `is_first_paying`, `success/failure` 컬럼
+- `union_mart_user_key_actions` 의 `funnel_from_coop_coupon` 컬럼은 [tasks.md §164](./tasks.md) 의 기존 설계 유지
+
+### 11-7. 보류·확장
+
+- `register_coupon_attempt` (등록 버튼 탭 시점) — 네트워크 끊김 측정용. 운영 중 의미있게 발생 시 추가
+- 서버 이벤트(`pay_for_contents` 외 추가) — DB 진실 원천 활용 가능하므로 불필요로 판단
+
+</details>
+
 ---
 
 ## 참조 문서
 
 | 문서 | 설명 |
 |------|------|
+| [data-measurement-plan.md](./data-measurement-plan.md) | 데이터 측정 계획 SSOT (KPI·정의·정책·소스 매핑·분석 쿼리) |
+| [event-spec.md](./event-spec.md) | 이벤트 발화 스펙 SSOT (Firebase 이벤트·파라미터·검증 절차) |
 | [api-spec.md](./api-spec.md) | API 상세 명세 (필드, 에러 코드, 처리 흐름) |
 | [client-guide.md](./client-guide.md) | 클라이언트 연동 가이드 (화면별 구현 상세, 에러 처리) |
 | [screen-plan.md](./screen-plan.md) | 화면 기획서 (화면 흐름, 구성 요소, 인터랙션) |
@@ -750,6 +910,9 @@ ORDER BY event_date DESC;
 
 | 날짜 | 이슈 | 변경 내용 |
 |------|------|----------|
+| 2026-04-28 | ISS-050 | **에러 코드 컨벤션 정합화**. 신규 에러 코드 `CM_001~CM_010` → `CM001~CM010` (언더바 제거, 기존 `CO`/`CP` 시리즈와 동일 형식). 의미 중복 enum 이름 `CM_INVALID_COUPON`/`CM_EXPIRED_COUPON`/`CM_ALREADY_USED_COUPON` → `CM_COUPON_NOT_FOUND`/`CM_COUPON_EXPIRED`/`CM_COUPON_ALREADY_USED` (CP 접미사 통일). `CO_APP_UPDATE_REQUIRED` 항목 삭제 → 기존 의미 중복 코드 `CO012(UPDATE_APP)`로 통합. ko 메시지 어미 "~이에요" → "~습니다" 정합화 + 의미 일치(`CM001~003`)는 ko/ja/en 모두 `CP001/003/002` 문구 그대로 채택. 서버 코드 적용 완료. iOS `CouponRegisterErrorMapper` 키 표 동기 + 클라이언트 회귀 후속. 운영 배포 전이라 하위 호환성 무시 가능 결정. |
+| 2026-04-28 | 문서 분리 | **§10 → [data-measurement-plan.md](./data-measurement-plan.md), §11 → [event-spec.md](./event-spec.md) 이전**. 데이터 측정 SSOT 와 이벤트 스펙 SSOT 를 별도 계약 문서로 분리 (다른 *-spec.md 와 컨벤션 통일). architecture.md §10/§11 자리에는 이전 안내 + `<details>` 보존 본문 유지. 참조 문서 표에 두 문서 추가. planning/ 의 success-metrics-kpi.md, performance-analysis-design.md 는 본 분리 작업으로 deprecated. |
+| 2026-04-28 | 이벤트 설계 | **§11 쿠폰 등록 이벤트 스펙 신설**. Firebase 클라이언트 이벤트 3종 — `view_coupon_register` (화면 진입), `register_coupon_success` / `register_coupon_failure` (등록 결과). 서버 이벤트 미발화 (DB 진실 원천 사용). success 파라미터 9개 (coupon_number, coupon_type, issued_type, product_code, fixed_menu_seq, heart_amount, bonus_heart_amount, latency_ms), failure 파라미터 6개 (coupon_number, coupon_type, coupon_prefix, error_code, reason, latency_ms). 응답 DTO 보강 필요 항목(productCode, heartAmount/bonusHeartAmount) 명시. 화이트리스트 등록 3건. |
 | 2026-04-28 | ISS-049 (Q4 결정) | §10-7 카카오 유입자 식별 추가. 등록일 기준 시간 단위(일/주/월) 신규 사용자 분류. `coop_kakao_first_used_date` (DATE) 컬럼 1개 추가 — `mart_user_daily_info` + `union_mart_user_key_actions` 양쪽. RDS `coop_marketing_coupon_usage` 일 1회 스냅샷 인입. `status` 무관하게 모든 등록 행을 유입으로 인정 (구매자/미구매자 분류는 `pay_for_*` 으로 자연 분리). 4/30 구현 완료 목표. |
 | 2026-04-27 | ISS-049 (Q1 결정) | **§10 데이터 분석 설계 신설**. 카카오 쿠폰 사용 결제의 거래액 인식 방식을 `spent_cash_amount` 인젝션으로 확정. 서버 측에서 카카오 쿠폰임을 인지하여 `coop_marketing_product.current_price ?? price` 를 인젝션. 데이터 측 SQL 변경 0건, 카탈로그 description 4건 갱신 + 카탈로그 ISS-017 등록. 하트 충전권은 유료 하트(`expiredAt=NULL`) 적립으로 자연 매출 인식 검증 완료. `coop_marketing_product.current_price` 컬럼 신설 마이그레이션 필요(서버). |
 | 2026-04-21 | /architect | §6 "앱 WebView 임베딩 여부" 섹션 신설 — iOS `CouponListViewController`, Android `CouponListActivity`, Web `hellobot-web/app/coupon/page.tsx`의 세 플랫폼이 독립 구현이며 앱 WebView 공유 경로 없음을 확정. "모바일 웹뷰 환경 검증" 항목 해당 없음으로 종결 근거 기록. |
