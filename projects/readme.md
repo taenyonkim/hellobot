@@ -682,7 +682,11 @@ git worktree add ../projects/YYYYMMDD-feature-name/worktrees/hellobot-server fea
 
 | 날짜 | 프로젝트명 | 상태 | 설명 |
 |------|-----------|------|------|
-| 2026-05-13 | [age-group-5yr](./20260513-age-group-5yr/) | 설계완료 · 개발대기 | `union_mart_user_key_actions` 등 6개 마트 SQL 에 5세 단위 균일 연령 버킷 `age_group_5yr` (event 시점 기준) 컬럼 추가. 월간 추이·drift 분석은 카탈로그 신규 recipe `age-cohort-trend-analysis.md` 로 표준화 |
+| 2026-05-20 | [yoy-decline-segment-analysis](./20260520-yoy-decline-segment-analysis/) | 스코프 합의 대기 | YoY 구매자수·매출 하락의 (5세 연령 × 플랫폼) 세그먼트 진단. age-group-5yr (PR #180) 5세 버킷 컬럼 활용. TODO-021 동시 등록 |
+| 2026-05-19 | [gcp-gemini-cost-mitigation](./20260519-gcp-gemini-cost-mitigation/) | 현황 분석 완료 · 2-트랙 후속 | GCP Gemini 4/29 이상비용 audit + 대응. Tier 0·1 audit + Cloud Monitoring forensic 완료 (CRITICAL 2 + HIGH 8, 4/29 = 미국 동부 abuser). 트랙 A IP 제한 + 트랙 B 메가존 협의. TODO-017 승격 |
+| 2026-05-17 | [kakao-gift-slack-notification](./20260517-kakao-gift-slack-notification/) | 기획 완료 · 개발 대기 | 카카오 선물하기 쿠폰 등록 알림 + 일별 통계 슬랙 push. /analyze + /architect 산출물. TODO-016 승격 |
+| 2026-05-13 | [age-group-5yr](./20260513-age-group-5yr/) | ✅ 적용완료 (2026-05-16) | `union_mart_user_key_actions` 등 6개 마트 SQL 에 5세 단위 균일 연령 버킷 `age_group_5yr` (event 시점 기준) 컬럼 추가. 월간 추이·drift 분석은 카탈로그 신규 recipe `age-cohort-trend-analysis.md` 로 표준화. [PR #180](https://github.com/thingsflow/common-data-airflow/pull/180) 머지 완료 |
+| 2026-05-13 | [heart-balance-mart](./20260513-heart-balance-mart/) | R1 PR #185 오픈 / R2 구현 대기 | 사용자별 일자별 하트 잔고·증감 마트 (R1) + 전체 평균 잔고 추이 (R2). R1 = `hlb_dim.dim_user_heart_balance_daily` + `dim_user_heart_flow_daily`. R2 = `hlb_report.report_avg_heart_balance_daily`. [PR #185](https://github.com/thingsflow/common-data-airflow/pull/185) |
 | 2026-05-11 | [external-ds-handover](./20260511-external-ds-handover/) | 초안 완료 | 외부 데이터 사이언티스트에게 BQ 조회 권한과 함께 전달할 패키지 — 카탈로그(infra-map · architecture · mart/event/metric · tables/) + 외부용 wrapper 5건(getting-started · conventions · caveats · query-guide · README) + 카탈로그 갭 보강 5건. 내부 운영 정보(SA 키·이슈·운영자) 제외 |
 | 2026-05-07 | [office-address-update](./20260507-office-address-update/) | 분석완료 · 개발대기 | 사무실 서교동 이전(잔다리로7길 3) — 웹 3개 리포(hellobot-web/webview/report-webview) footer i18n + 일본 특정상거래법 공시 주소 교체. 외부 채널(Notion/스토어/메일) 제외 |
 | 2026-05-03 | [workspace-evolution](./20260503-workspace-evolution/) | 분석중 | 워크스페이스 3차 진화 계획 — Claude Code 기능 활용 + 누적 프로젝트 회고 + 파트별 도메인 지식 누적 구조 설계. 적용은 후속 프로젝트로 분리. 진입: [architecture.md](./20260503-workspace-evolution/architecture.md) |
