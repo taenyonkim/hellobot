@@ -81,14 +81,48 @@ GROUP BY 1, 2;
 - **컬럼**: `delta` (해당 log_type 의 일자 합계)
 - **용도**: 충전 출처별(promotion/purchase/gift 등) 보유 기여도 분해, ROI 분석 입력
 
-### 3-3. lineage
+### 3-3. `hlb_report.report_avg_heart_balance_daily` (R2 산출)
+
+- **목적**: Customer Job #2 "우리 서비스의 사용자별·전체 평균 하트 잔고를 알 수 있다" 충족
+- **그레인**: `(event_date, heart_kind, population)`
+  - `heart_kind ∈ {'normal', 'bonus', 'total'}` — 'total' 은 두 종류 합산 행
+  - `population ∈ {'all_signup', 'active_d7', 'paying_d30'}` — 세 모집단을 동시에 적재 (분석 측에서 필요한 관점 선택)
+- **소스**: `hlb_mart.mart_user_heart_balance_daily` (R1 마트) + `hlb_mart.mart_user_daily_info` (활성 / 신규 분기) + `hlb_mart_integrated.union_mart_user_key_actions` (결제자 분기)
+- **컬럼**:
+
+| 컬럼 | 타입 | 정의 |
+|---|---|---|
+| `event_date` | DATE | Asia/Seoul |
+| `heart_kind` | STRING | `normal` / `bonus` / `total` |
+| `population` | STRING | `all_signup` / `active_d7` / `paying_d30` |
+| `num_users` | INT64 | 해당 모집단의 사용자 수 |
+| `num_users_with_balance` | INT64 | balance > 0 인 사용자 수 |
+| `avg_balance` | FLOAT64 | 평균 잔고 (분모 = num_users, 0 잔고 포함) |
+| `avg_balance_holders_only` | FLOAT64 | 평균 잔고 (분모 = num_users_with_balance, 0 제외) |
+| `p10_balance` | INT64 | 10 분위 |
+| `p25_balance` | INT64 | 25 분위 (1사분위) |
+| `p50_balance` | INT64 | 중앙값 |
+| `p75_balance` | INT64 | 75 분위 (3사분위) |
+| `p90_balance` | INT64 | 90 분위 |
+| `total_balance` | INT64 | 전체 보유 합계 (전사 총량) |
+
+- **파티션**: `event_date` DAY
+- **머티리얼라이제이션**: R1 마트 산출 직후 일 1회 풀 갱신 (집계 크기 작음 — 일 ~9 행 = 3 heart_kind × 3 population)
+- **모집단 정의**:
+  - `all_signup` — 전체 가입자 (`mart_user_daily_info` 의 join 대상 전체)
+  - `active_d7` — D-7 ~ D 사이 1회 이상 방문 (DAU 정의 활용)
+  - `paying_d30` — D-30 ~ D 사이 결제자 (`union_mart_user_key_actions` 의 `pay_*` 이벤트 보유 user)
+
+### 3-4. lineage
 
 ```
 server_rdb.heart_log + server_rdb.heart_log_detail
     │
     ▼ (mart, 신규 — intermediate 미사용, 직접 mart 산출)
-hlb_mart.mart_user_heart_balance_daily       ← 주산출
-hlb_mart.mart_user_heart_flow_daily          ← 보조 (흐름)
+hlb_mart.mart_user_heart_balance_daily       ← R1 주산출
+hlb_mart.mart_user_heart_flow_daily          ← R1 보조 (흐름)
+    │
+    ├─▶ hlb_report.report_avg_heart_balance_daily   ← R2 (+ mart_user_daily_info, union_mart_user_key_actions 로 모집단 분기)
     │
     ▼ (dim 으로 join, union 합류 X — transaction 마트가 아님)
 Looker 대시보드
@@ -129,3 +163,4 @@ Looker 대시보드
 | 날짜 | 변경 | 작성자 |
 |---|---|---|
 | 2026-05-13 | 초안 — server_rdb.* 기준 산식·마트 설계·1안 풀 recompute 채택 (dry-run 10.16 GB 검증) | /dev-data |
+| 2026-05-15 | §3-3 R2 리포트 마트 `hlb_report.report_avg_heart_balance_daily` 스펙 추가 (3 heart_kind × 3 모집단 그레인, 평균·분위수·총량 컬럼). §3-4 lineage 갱신. 사용 취소 이벤트·Hackle·GA 는 본 프로젝트 제외 | /analyze |
